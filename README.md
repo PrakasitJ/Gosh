@@ -1,121 +1,130 @@
 # Gosh (Go#)
 
-Gosh (Go#) is an experimental, OOP-inspired programming language built on top of Go. 
-It keeps Go’s performance and simplicity while introducing higher-level syntax, 
-object-oriented concepts, and an easier developer experience (DX).
+> An experimental, OOP-inspired programming language built on top of Go
 
----
+Gosh combines Go's legendary performance with intuitive, high-level syntax. Write expressive code without sacrificing speed.
 
-Key Features:
+## ✨ Why Gosh?
 
-- OOP-inspired syntax – define variables, expressions, and logic in a more intuitive way.
-- Seamless Go integration – write native Go code inline using `::` for ultimate flexibility.
-- Automatic transpilation – `.gosh` files are transpiled into Go code and executed automatically.
-- Performance-first – leverages Go’s speed and efficiency under the hood.
-- Easy import handling – simple `import` syntax that maps directly to Go packages.
+- **Intuitive Syntax** – OOP-inspired expressions that feel natural
+- **Zero Overhead** – Transpiles directly to Go for native performance
+- **Instant Execution** – Write and run in one command
+- **Go Interop** – Drop into native Go code anytime with `::`
+- **Simple Imports** – Clean, straightforward package management
 
----
+## 🚀 Quick Start
 
-Concept Overview:
+```bash
+gosh hello.gosh
+```
 
-Gosh’s pipeline follows a clear, structured flow:
+```gosh
+import fmt;
 
-+------------------+
-|     .gosh file    |
-+------------------+
-          |
-          v
-+------------------+
-| Read bytes from  |
-|     file         |
-+------------------+
-          |
-          v
-+------------------+
-| Convert to string |
-|     content       |
-+------------------+
-          |
-          v
-+------------------+
-|   Create Lexer    |
-+------------------+
-          |
-          v
-+----------------------------+
-| Generate Tokens character  |
-|       by character         |
-+----------------------------+
-          |
-          v
-+----------------------------+
-| Parse Tokens into AST      |
-|        expressions         |
-+----------------------------+
-          |
-          v
-+----------------------------+
-| Transpile AST to Go code   |
-+----------------------------+
-          |
-          v
-+----------------------------+
-| Run Go code automatically  |
-+----------------------------+
-          |
-          v
-+----------------------------+
-|      Execution complete    |
-+----------------------------+
+string greeting = "Hello, Gosh!";
+:: fmt.Println(greeting)
+```
 
+## 📖 Language Guide
 
----
+### Imports
 
-Syntax:
+All imports must be declared at the top of your file:
 
-1. Imports:
+```gosh
+import fmt; math; strings;
+```
 
+### Variables
+
+Declare variables with explicit types:
+
+```gosh
+int count = 42;
+bool active = true;
+string name = "Gosh";
+float pi = 3.14159;
+```
+
+### Expressions
+
+Full support for arithmetic with proper operator precedence:
+
+```gosh
+int result = (10 + 20) * 3;
+int complex = ((a + b) * c) / (d - e);
+```
+
+### Native Go Code
+
+Use `::` to execute raw Go code inline:
+
+```gosh
+int x = 10;
+int y = 20;
+
+:: fmt.Printf("Sum: %d\n", x + y)
+:: if x > 5 {
+::     fmt.Println("x is greater than 5")
+:: }
+```
+
+## 🔧 CLI Usage
+
+```bash
+# Run your code
+gosh script.gosh
+
+# Debug mode (shows generated Go code)
+gosh script.gosh --debug=true
+```
+
+## 🏗️ How It Works
+
+```
+.gosh file → Lexer → Tokens → Parser → AST → Transpiler → Go code → Execution
+```
+
+1. **Lexer** – Breaks source into tokens character by character
+2. **Parser** – Builds an Abstract Syntax Tree from tokens
+3. **Transpiler** – Converts AST into valid Go code
+4. **Execution** – Compiles and runs the generated Go program
+
+## 📝 Example
+
+```gosh
 import fmt; math;
 
-- All imports must be at the **top of the file**.
-- Automatically handled in transpilation.
+int radius = 5;
+float area = math.Pi * float(radius * radius);
 
-2. Variable declaration:
+:: fmt.Printf("Circle area: %.2f\n", area)
+```
 
-[type] [variable_name] = [RHS];
+Generated Go code:
+```go
+package main
 
-Examples:
+import (
+    "fmt"
+    "math"
+)
 
-int a = 10;
-bool b = true;
-string message = "Hello Gosh!";
+func main() {
+    radius := 5
+    area := math.Pi * float64(radius * radius)
+    fmt.Printf("Circle area: %.2f\n", area)
+}
+```
 
-3. Native Go code:
+## 🎯 Current Status
 
-Use `::` to write native Go code directly:
+Gosh is experimental and under active development. Contributions, feedback, and ideas are welcome!
 
-:: fmt.Println(a, b, message)
+## 📄 License
 
-- Allows you to execute Go code inline without transpilation interference.
-
-4. Expressions:
-
-- Supports numeric operations with proper operator precedence:
-  
-int c = (10 * (a + b));
-
-- Parentheses are supported to control operation order.
-
----
-
-Usage:
-
-gosh <filename.gosh> [--debug=true|false]
-
-- `--debug=true` prints the generated Go code without running it.
-- `--debug=false` (or omit) executes the transpiled code immediately.
+[Your License Here]
 
 ---
 
-Gosh is designed to combine Go’s performance with a more flexible, high-level syntax, 
-making it easier to write expressive code without sacrificing speed.
+**Built with ❤️ and Go's speed**
