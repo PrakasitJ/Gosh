@@ -1,14 +1,22 @@
 package lexer
 
-import "fmt"
+func GetLeftRightFromDefined(lx *Lexer) (*Token, *Token) {
+	left := lx.Tokenize()
+	lx.Tokenize()
+	right := lx.Tokenize()
+	lx.Tokenize()
+	return &left, &right
+}
 
-func RemoveNumericSuffix(literal string) string{
-	if literal[len(literal)-1] == 'f' || literal[len(literal)-1] == 'F' ||
-       literal[len(literal)-1] == 'd' || literal[len(literal)-1] == 'D' ||
-	   literal[len(literal)-1] == 'L' || literal[len(literal)-1] == 'l' {
-		fmt.Println(literal[:len(literal)-1])
-        return literal[:len(literal)-1]
-    }
-	fmt.Println(literal)
+func RemoveNumericSuffix(literal string) string {
+	if len(literal) == 0 {
+		return literal
+	}
+	last := literal[len(literal)-1]
+	if last == 'f' || last == 'F' ||
+		last == 'd' || last == 'D' ||
+		last == 'L' || last == 'l' {
+		return literal[:len(literal)-1]
+	}
 	return literal
 }

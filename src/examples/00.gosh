@@ -1,34 +1,5 @@
-import fmt;
+native_import fmt;
 
-int ai = 42;
-int bi = 7;
-int ci = ai * 2 + bi;
+int c = 10;
 
-byte smallb = 128;
-
-float xf = 9.81f;
-double yd = 2.7182818284;
-
-long bigboy = 9223372036854775807L;  // max int64
-
-string greetingMessage = "Hello, Go world!";
-bool isActive = false;
-
-:: fmt.Println("INT ai =", ai)
-:: fmt.Println("INT bi =", bi)
-:: fmt.Println("INT ci =", ci)
-
-:: fmt.Println("BYTE smallb =", smallb)
-
-:: fmt.Println("FLOAT xf =", xf)
-:: fmt.Println("DOUBLE yd =", yd)
-
-:: fmt.Println("LONG bigboy =", bigboy)
-
-:: fmt.Println(greetingMessage)
-
-:: if isActive {
-::     fmt.Println("Boolean is TRUE")
-:: } else {
-::     fmt.Println("Boolean is FALSE")
-:: }
+fmt.Println("result: ", c)
