@@ -1,4 +1,4 @@
-import fmt;
+native_import fmt;
 
 int a = 10;
 int b = 5;

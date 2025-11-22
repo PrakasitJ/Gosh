@@ -280,13 +280,22 @@ func transpileWithPath(in string, basePath string) string {
 		}
 
 		switch tok.Type {
-		case lx.TYPE_INT, lx.TYPE_STRING, lx.TYPE_BOOLEAN:
+		case lx.TYPE_INT, lx.TYPE_LONG, lx.TYPE_FLOAT, lx.TYPE_DOUBLE,
+			lx.TYPE_BYTE, lx.TYPE_STRING, lx.TYPE_BOOLEAN:
 			leftTok, expr := parsing.GetVarAndExpr(lexer)
 			goRhs := parsing.TranspileExpr(expr)
 
 			switch tok.Type {
 			case lx.TYPE_INT:
 				out.WriteString(fmt.Sprintf("\tvar %s int = %s\n", leftTok.Literal, goRhs))
+			case lx.TYPE_LONG:
+				out.WriteString(fmt.Sprintf("\tvar %s int64 = %s\n", leftTok.Literal, lx.RemoveNumericSuffix(goRhs)))
+			case lx.TYPE_FLOAT:
+				out.WriteString(fmt.Sprintf("\tvar %s float32 = %s\n", leftTok.Literal, lx.RemoveNumericSuffix(goRhs)))
+			case lx.TYPE_DOUBLE:
+				out.WriteString(fmt.Sprintf("\tvar %s float64 = %s\n", leftTok.Literal, lx.RemoveNumericSuffix(goRhs)))
+			case lx.TYPE_BYTE:
+				out.WriteString(fmt.Sprintf("\tvar %s byte = %s\n", leftTok.Literal, goRhs))
 			case lx.TYPE_STRING:
 				out.WriteString(fmt.Sprintf("\tvar %s string = %s\n", leftTok.Literal, goRhs))
 			case lx.TYPE_BOOLEAN:

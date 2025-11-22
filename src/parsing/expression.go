@@ -2,6 +2,7 @@ package parsing
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	lx "github.com/B1gdawg0/Gosh/src/lexer"
@@ -17,7 +18,7 @@ var precedence = map[lx.TokenType]int{
 type Expr interface{}
 
 type NumericExpr struct {
-	Value int
+	Raw string
 }
 
 type IdentifierExpr struct {
@@ -26,6 +27,10 @@ type IdentifierExpr struct {
 
 type StringExpr struct {
 	Value string
+}
+
+type BooleanExpr struct {
+	Value bool
 }
 
 type BinaryExpr struct {
@@ -71,6 +76,7 @@ func parseBinaryExpr(lexer *lx.Lexer, minPrec int) Expr {
 		}
 
 		right := parseBinaryExpr(lexer, prec+1)
+
 		left = &BinaryExpr{
 			Left:  left,
 			Ops:   op.Type,
@@ -83,10 +89,11 @@ func parseBinaryExpr(lexer *lx.Lexer, minPrec int) Expr {
 func parsePrimary(lexer *lx.Lexer) Expr {
 	tok := lexer.Tokenize()
 	switch tok.Type {
-	case lx.INT:
-		val := 0
-		fmt.Sscanf(tok.Literal, "%d", &val)
-		return &NumericExpr{Value: val}
+	case lx.INT, lx.BYTE, lx.FLOAT, lx.DOUBLE, lx.LONG:
+		return &NumericExpr{Raw: tok.Literal}
+	case lx.BOOLEAN:
+		b, _ := strconv.ParseBool(tok.Literal)
+		return &BooleanExpr{Value: b}
 	case lx.IDENT:
 		expr := &IdentifierExpr{Name: tok.Literal}
 		return parsePostfix(lexer, expr)
@@ -105,8 +112,7 @@ func parsePrimary(lexer *lx.Lexer) Expr {
 	case lx.FUNC:
 		return parseLambdaExpr(lexer)
 	default:
-		fmt.Println(tok.Literal)
-		panic(fmt.Sprintf("[Error] Unexpected token at line: %d", tok.Line))
+		panic(fmt.Sprintf("[Error] Unexpected token '%s' at line: %d", tok.Literal, tok.Line))
 	}
 }
 
@@ -335,16 +341,27 @@ func SetClassRegistry(classes map[string]*ClassDecl) {
 func TranspileExpr(e Expr) string {
 	switch v := e.(type) {
 	case *NumericExpr:
-		return fmt.Sprintf("%d", v.Value)
+		return v.Raw
+
 	case *StringExpr:
 		return fmt.Sprintf("\"%s\"", v.Value)
+
+	case *BooleanExpr:
+		if v.Value {
+			return "true"
+		}
+		return "false"
+
 	case *IdentifierExpr:
 		return v.Name
+
 	case *BinaryExpr:
 		return fmt.Sprintf("(%s %s %s)",
 			TranspileExpr(v.Left),
 			v.Ops,
-			TranspileExpr(v.Right))
+			TranspileExpr(v.Right),
+		)
+
 	case *NewExpr:
 		if len(v.Args) > 0 {
 			class, ok := classRegistry[v.ClassName]
@@ -454,6 +471,7 @@ func TranspileExpr(e Expr) string {
 
 func GetVarAndExpr(lexer *lx.Lexer) (*lx.Token, Expr) {
 	left := lexer.Tokenize()
+
 	eq := lexer.Tokenize()
 	if eq.Type != lx.ASSIGN {
 		panic(fmt.Sprintf("[Error] Expected '=' after variable at line %d", left.Line))
@@ -465,5 +483,6 @@ func GetVarAndExpr(lexer *lx.Lexer) (*lx.Token, Expr) {
 	if semi.Type != lx.SEMI {
 		panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
 	}
+
 	return &left, expr
 }
