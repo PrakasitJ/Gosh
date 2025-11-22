@@ -1,4 +1,4 @@
-# Gosh (Go#) 🔥
+# GO# (Gosharp) or Gosh
 
 ## Look, I love Go. But sometimes... ugh.
 
@@ -22,11 +22,7 @@ So I built Gosh for the love of the game. Life's too short to choose between per
 
 **Gosh is the "yes, and" to Go's "no, but"**
 
-Write OOP-style code that transpiles to pure Go. You get modern syntax with Go's legendary performance baked in.
-
-### Real talk: This might be the fastest OOP language ever
-
-Why? Because under the hood, it's just Go. We're not interpreting. We're not adding runtime overhead. We're transpiling to native Go code and letting the Go compiler do its magic.
+Write OOP-style code that transpiles to pure Go. You get modern syntax with Go's legendary performance baked in. And, This might be the **fastest OOP language ever** right? Because under the hood, it's just Go. We're not interpreting. We're not adding runtime overhead. We're transpiling to native Go code and letting the Go compiler do its magic.
 
 **Big Omega(Go performance)** - that's your floor, not your ceiling.
 
@@ -66,23 +62,23 @@ gosh script.gosh --debug=true # See the Go code it generates
 
 **Imports** - throw 'em at the top:
 ```gosh
-import fmt; math; strings;
+import fmt math strings;
 ```
 
-**Variables** - explicit types, no walrus operator confusion:
+**Variables** - type come first:
 ```gosh
 int speed = 9999;
 bool isAwesome = true;
 string vibe = "immaculate";
 ```
 
-**Math** - operators that make sense:
+**Math** - normal math:
 ```gosh
 int result = (10 + 20) * 3;
 int chaos = ((a + b) * c) / (d - e);
 ```
 
-**Native Go escape hatch** - need raw Go? Use `::`:
+**Native Go escape hatch** - need raw Go? Use `::` (syntax was actually added for debugging, but let's keep it):
 ```gosh
 int x = 42;
 
@@ -97,7 +93,7 @@ int x = 42;
 ## Full Example
 
 ```gosh
-import fmt; math;
+import fmt math;
 
 int radius = 10;
 float area = math.Pi * float(radius * radius);
@@ -112,7 +108,7 @@ float area = math.Pi * float(radius * radius);
 
 ```go
 package main
-import ("fmt"; "math")
+import ("fmt" "math")
 
 func main() {
     radius := 10
