@@ -3,6 +3,10 @@ package lexer
 type TokenType string
 
 const (
+	IF			 TokenType = "IF"
+	ELSEIF			 TokenType = "ELSEIF"
+	ELSE			 TokenType = "ELSE"
+
 	TYPE_INT     TokenType = "TYPE_INT"
 	TYPE_STRING  TokenType = "TYPE_STRING"
 	TYPE_BOOLEAN TokenType = "TYPE_BOOLEAN"
@@ -25,6 +29,17 @@ const (
 	MINUS  TokenType = "-"
 	MULT   TokenType = "*"
 	DIV    TokenType = "/"
+
+	EQ     TokenType = "=="
+	NEQ    TokenType = "!="
+	LT     TokenType = "<" 
+	GT     TokenType = ">"
+	LTE    TokenType = "<="
+	GTE    TokenType = ">="
+
+	AND    TokenType = "&&"
+	OR     TokenType = "||"
+	NOT    TokenType = "!" 
 
 	LPAREN   TokenType = "("
 	RPAREN   TokenType = ")"
@@ -69,6 +84,9 @@ var keywords = map[string]TokenType{
 	"double":        TYPE_DOUBLE,
 	"long":          TYPE_LONG,
 	"byte":          TYPE_BYTE,
+	"if":			 IF,
+	"else if":       ELSEIF,
+	"else":          ELSE,
 }
 
 func LookupIdent(ident string) TokenType {

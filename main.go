@@ -301,6 +301,10 @@ func transpileWithPath(in string, basePath string) string {
 			case lx.TYPE_BOOLEAN:
 				out.WriteString(fmt.Sprintf("\tvar %s bool = %s\n", leftTok.Literal, goRhs))
 			}
+		case lx.IF:
+			ifExpr := parsing.ParseIfExpr(lexer)
+			goCode := parsing.TranspileExpr(ifExpr)
+			out.WriteString(goCode + "\n")
 		case lx.IDENT:
 			next := lexer.Tokenize()
 

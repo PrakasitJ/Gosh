@@ -1,0 +1,15 @@
+native_import fmt;
+
+int a = 10;
+int c = 0;
+bool b = true;
+
+if !( a - 10 == 1 && a * 0 != 1 || (!(!b))){
+	fmt.Println("not correct");
+}else if( !true || false || true != !false){
+	fmt.Println("not correct");
+}else if(false){
+	fmt.Println("not correct");
+}else{
+	fmt.Println("correct ", c);
+}

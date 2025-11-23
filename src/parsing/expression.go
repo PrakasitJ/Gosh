@@ -9,10 +9,18 @@ import (
 )
 
 var precedence = map[lx.TokenType]int{
-	lx.PLUS:  1,
-	lx.MINUS: 1,
-	lx.MULT:  2,
-	lx.DIV:   2,
+	lx.OR:    1,
+	lx.AND:   2,
+	lx.EQ:    3,
+	lx.NEQ:   3,
+	lx.LT:    3,
+	lx.GT:    3,
+	lx.LTE:   3,
+	lx.GTE:   3,
+	lx.PLUS:  4,
+	lx.MINUS: 4,
+	lx.MULT:  5,
+	lx.DIV:   5,
 }
 
 type Expr interface{}
@@ -54,6 +62,21 @@ type LambdaExpr struct {
 	Body   string
 }
 
+type BlockExpr struct {
+	Body []Expr
+}
+
+type IfExpr struct {
+	Condition Expr
+	Then      Expr
+	Else      Expr
+}
+
+type UnaryExpr struct {
+	Op    lx.TokenType
+	Right Expr
+}
+
 func ParseExpr(lexer *lx.Lexer) Expr {
 	return parseBinaryExpr(lexer, 0)
 }
@@ -86,11 +109,123 @@ func parseBinaryExpr(lexer *lx.Lexer, minPrec int) Expr {
 	return left
 }
 
+func ParseIfExpr(lexer *lx.Lexer) *IfExpr {
+    cond := ParseExpr(lexer)
+
+    lexer.SkipWhiteSpace()
+
+    tok := lexer.Tokenize()
+    if tok.Type != lx.LBRACE {
+        panic(fmt.Sprintf("[Error] Expected '{' after if condition at line %d", tok.Line))
+    }
+
+    thenBlock := parseBlockExpr(lexer)
+
+    lexer.SkipWhiteSpace()
+    tok = lexer.Tokenize()
+    if tok.Type == lx.ELSE {
+        next := lexer.Tokenize()
+        switch next.Type {
+        case lx.IF:
+            return &IfExpr{
+                Condition: cond,
+                Then:      thenBlock,
+                Else:      ParseIfExpr(lexer),
+            }
+        case lx.LBRACE:
+            elseBlock := parseBlockExpr(lexer)
+            return &IfExpr{
+                Condition: cond,
+                Then:      thenBlock,
+                Else:      elseBlock,
+            }
+        default:
+            panic(fmt.Sprintf("[Error] Expected 'if' or '{' after else at line %d", next.Line))
+        }
+    }
+
+    return &IfExpr{
+        Condition: cond,
+        Then:      thenBlock,
+        Else:      nil,
+    }
+}
+
+func parseBlockExpr(lexer *lx.Lexer) Expr {
+	var body []Expr
+	for {
+		tok := lexer.PeekToken()
+		if tok.Type == lx.RBRACE {
+			lexer.Tokenize()
+			break
+		}
+		body = append(body, parseStatement(lexer))
+	}
+	return &BlockExpr{Body: body}
+}
+
+
+func parseStatement(lexer *lx.Lexer) Expr {
+	tok := lexer.PeekToken()
+
+	switch tok.Type {
+	case lx.TYPE_INT, lx.TYPE_LONG, lx.TYPE_FLOAT, lx.TYPE_DOUBLE,
+		lx.TYPE_BYTE, lx.TYPE_STRING, lx.TYPE_BOOLEAN:
+		return parseVarDecl(lexer)
+	case lx.IF:
+		lexer.Tokenize()
+		return ParseIfExpr(lexer)
+	default:
+		expr := ParseExpr(lexer)
+		semi := lexer.Tokenize()
+		if semi.Type != lx.SEMI {
+			panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
+		}
+		return expr
+	}
+}
+
+func parseVarDecl(lexer *lx.Lexer) Expr {
+	typeTok := lexer.Tokenize()
+	var varType lx.TokenType = typeTok.Type
+
+	nameTok := lexer.Tokenize()
+	if nameTok.Type != lx.IDENT {
+		panic(fmt.Sprintf("[Error] Expected variable name after type at line %d", nameTok.Line))
+	}
+	varName := nameTok.Literal
+	assignTok := lexer.Tokenize()
+	if assignTok.Type != lx.ASSIGN {
+		panic(fmt.Sprintf("[Error] Expected '=' after variable name at line %d", assignTok.Line))
+	}
+
+	valueExpr := ParseExpr(lexer)
+
+	semi := lexer.Tokenize()
+	if semi.Type != lx.SEMI {
+		panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
+	}
+
+	return &VarDecl{
+		Name:  varName,
+		Type:  varType,
+		Value: valueExpr,
+	}
+}
+
 func parsePrimary(lexer *lx.Lexer) Expr {
 	tok := lexer.Tokenize()
 	switch tok.Type {
 	case lx.INT, lx.BYTE, lx.FLOAT, lx.DOUBLE, lx.LONG:
 		return &NumericExpr{Raw: tok.Literal}
+	case lx.NOT:
+		operand := parsePrimary(lexer)
+		return &UnaryExpr{
+			Op:    tok.Type,
+			Right: operand,
+		}
+	case lx.IF:
+		return ParseIfExpr(lexer)
 	case lx.BOOLEAN:
 		b, _ := strconv.ParseBool(tok.Literal)
 		return &BooleanExpr{Value: b}
@@ -365,7 +500,35 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 			v.Ops,
 			TranspileExpr(v.Right),
 		)
+	case *IfExpr:
+		s := "if " + TranspileExpr(v.Condition) + " "
+		s += TranspileExpr(v.Then)
 
+		if v.Else != nil {
+			if elseIf, ok := v.Else.(*IfExpr); ok {
+				s += " else " + TranspileExpr(elseIf)
+			} else {
+				s += " else " + TranspileExpr(v.Else)
+			}
+		}
+		return s
+
+	case *BlockExpr:
+		s := "{\n"
+		for _, stmt := range v.Body {
+			s += "\t" + TranspileExpr(stmt) + "\n"
+		}
+		s += "}"
+		return s
+	
+	case *UnaryExpr:
+		opStr := ""
+		switch v.Op {
+		case lx.NOT:
+			opStr = "!"
+		}
+		return opStr + TranspileExpr(v.Right)
+		
 	case *NewExpr:
 		class, ok := classRegistry[v.ClassName]
 		if !ok {
@@ -511,7 +674,7 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 		}
 		return fmt.Sprintf("func(%s) { %s }", params, v.Body)
 	default:
-		panic(fmt.Sprintf("Unknown expr type: %T", e))
+		panic(fmt.Sprintf("[Error] Unknown expr type: %T", e))
 	}
 }
 

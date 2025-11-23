@@ -30,71 +30,114 @@ func (lx *Lexer) Tokenize() Token {
 	}
 
 	var tok Token
-	lx.skipWhiteSpace()
+	lx.SkipWhiteSpace()
 	tok.Line = lx.line
 
 	switch lx.ch {
-	case '=':
-		tok = Token{Type: ASSIGN, Literal: string(lx.ch), Line: lx.line}
-	case ';':
-		tok = Token{Type: SEMI, Literal: string(lx.ch), Line: lx.line}
-	case '(':
-		tok = Token{Type: LPAREN, Literal: string(lx.ch), Line: lx.line}
-	case ')':
-		tok = Token{Type: RPAREN, Literal: string(lx.ch), Line: lx.line}
-	case '+':
-		tok = Token{Type: PLUS, Literal: string(lx.ch), Line: lx.line}
-	case '-':
-		tok = Token{Type: MINUS, Literal: string(lx.ch), Line: lx.line}
-	case '*':
-		tok = Token{Type: MULT, Literal: string(lx.ch), Line: lx.line}
-	case '/':
-		tok = Token{Type: DIV, Literal: string(lx.ch), Line: lx.line}
-	case '.':
-		tok = Token{Type: DOT, Literal: string(lx.ch), Line: lx.line}
-	case ',':
-		tok = Token{Type: COMMA, Literal: string(lx.ch), Line: lx.line}
-	case '{':
-		tok = Token{Type: LBRACE, Literal: string(lx.ch), Line: lx.line}
-	case '}':
-		tok = Token{Type: RBRACE, Literal: string(lx.ch), Line: lx.line}
-	case '[':
-		tok = Token{Type: LBRACKET, Literal: string(lx.ch), Line: lx.line}
-	case ']':
-		tok = Token{Type: RBRACKET, Literal: string(lx.ch), Line: lx.line}
-	case '"':
-		tok.Literal = lx.readContentInsideDoubleQuote()
-		tok.Type = STRING
-		return tok
-	case ':':
-		if lx.checkRightChar() == ':' {
+		case '=':
+		if lx.checkRightChar() == '=' {
 			lx.moveCursorToRight()
-			lx.moveCursorToRight()
-
-			start := lx.pos
-			for lx.ch != 0 && lx.ch != '\n' && lx.ch != ';' {
-				lx.moveCursorToRight()
-			}
-			literal := lx.input[start:lx.pos]
-			tok = Token{Type: NATIVE, Literal: literal, Line: lx.line}
-			return tok
-		}
-	case 0:
-		tok.Literal = ""
-		tok.Type = EOF
-	default:
-		if isLetter(lx.ch) {
-			tok.Literal = lx.readIdentifier()
-			tok.Type = LookupIdent(tok.Literal)
-			return tok
-		} else if isDigit(lx.ch) {
-			literal := lx.readNumeric()
-			tok.Type = DetectNumberType(literal)
-			tok.Literal = literal
-			return tok
+			tok = Token{Type: EQ, Literal: "==", Line: lx.line}
 		} else {
-			tok = Token{Type: ILLEGAL, Literal: string(lx.ch), Line: lx.line}
+			tok = Token{Type: ASSIGN, Literal: "=", Line: lx.line}
 		}
+		case ';':
+			tok = Token{Type: SEMI, Literal: string(lx.ch), Line: lx.line}
+		case '(':
+			tok = Token{Type: LPAREN, Literal: string(lx.ch), Line: lx.line}
+		case ')':
+			tok = Token{Type: RPAREN, Literal: string(lx.ch), Line: lx.line}
+		case '+':
+			tok = Token{Type: PLUS, Literal: string(lx.ch), Line: lx.line}
+		case '-':
+			tok = Token{Type: MINUS, Literal: string(lx.ch), Line: lx.line}
+		case '*':
+			tok = Token{Type: MULT, Literal: string(lx.ch), Line: lx.line}
+		case '/':
+			tok = Token{Type: DIV, Literal: string(lx.ch), Line: lx.line}
+		case '.':
+			tok = Token{Type: DOT, Literal: string(lx.ch), Line: lx.line}
+		case ',':
+			tok = Token{Type: COMMA, Literal: string(lx.ch), Line: lx.line}
+		case '{':
+			tok = Token{Type: LBRACE, Literal: string(lx.ch), Line: lx.line}
+		case '}':
+			tok = Token{Type: RBRACE, Literal: string(lx.ch), Line: lx.line}
+		case '[':
+			tok = Token{Type: LBRACKET, Literal: string(lx.ch), Line: lx.line}
+		case ']':
+			tok = Token{Type: RBRACKET, Literal: string(lx.ch), Line: lx.line}
+		case '!':
+			if lx.checkRightChar() == '=' {
+				lx.moveCursorToRight()
+				tok = Token{Type: NEQ, Literal: "!=", Line: lx.line}
+			} else {
+				tok = Token{Type: NOT, Literal: "!", Line: lx.line}
+			}
+		case '<':
+			if lx.checkRightChar() == '=' {
+				lx.moveCursorToRight()
+				tok = Token{Type: LTE, Literal: "<=", Line: lx.line}
+			} else {
+				tok = Token{Type: LT, Literal: "<", Line: lx.line}
+			}
+		case '>':
+			if lx.checkRightChar() == '=' {
+				lx.moveCursorToRight()
+				tok = Token{Type: GTE, Literal: ">=", Line: lx.line}
+			} else {
+				tok = Token{Type: GT, Literal: ">", Line: lx.line}
+			}
+		case '&':
+			if lx.checkRightChar() == '&' {
+				lx.moveCursorToRight()
+				tok = Token{Type: AND, Literal: "&&", Line: lx.line}
+			} else {
+				tok = Token{Type: ILLEGAL, Literal: string(lx.ch), Line: lx.line}
+			}
+		case '|':
+			if lx.checkRightChar() == '|' {
+				lx.moveCursorToRight()
+				tok = Token{Type: OR, Literal: "||", Line: lx.line}
+			} else {
+				tok = Token{Type: ILLEGAL, Literal: string(lx.ch), Line: lx.line}
+			}
+		case '"':
+			tok.Literal = lx.readContentInsideDoubleQuote()
+			tok.Type = STRING
+			return tok
+		case ':':
+			if lx.checkRightChar() == ':' {
+				lx.moveCursorToRight()
+				lx.moveCursorToRight()
+
+				start := lx.pos
+				for lx.ch != 0 && lx.ch != '\n' && lx.ch != ';' {
+					lx.moveCursorToRight()
+				}
+				literal := lx.input[start:lx.pos]
+				tok = Token{Type: NATIVE, Literal: literal, Line: lx.line}
+				return tok
+			}
+		case 0:
+			tok.Literal = ""
+			tok.Type = EOF
+		default:
+			if isLetter(lx.ch) {
+				literal := lx.readIdentifier()
+				tok.Type = LookupIdent(literal)
+				tok.Literal = literal
+				tok.Line = lx.line
+				return tok
+			} else if isDigit(lx.ch) {
+				literal := lx.readNumeric()
+				tok.Type = DetectNumberType(literal)
+				tok.Literal = literal
+				tok.Line = lx.line
+				return tok
+			} else {
+				tok = Token{Type: ILLEGAL, Literal: string(lx.ch), Line: lx.line}
+			}
 	}
 	lx.moveCursorToRight()
 	return tok
@@ -117,7 +160,45 @@ func (lx *Lexer) checkRightChar() byte {
 	return lx.input[lx.readPos]
 }
 
-func (lx *Lexer) skipWhiteSpace() {
+func (lx *Lexer) PeekToken() Token {
+    savedPos := lx.pos
+    savedReadPos := lx.readPos
+    savedCh := lx.ch
+
+    tok := lx.Tokenize()
+
+    lx.pos = savedPos
+    lx.readPos = savedReadPos
+    lx.ch = savedCh
+
+    return tok
+}
+
+
+func (lx *Lexer) CheckElseORElseIf() byte {
+	if lx.pos+3 >= len(lx.input) {
+		return 0
+	}
+
+	if lx.input[lx.pos] == 'e' &&
+		lx.input[lx.pos+1] == 'l' &&
+		lx.input[lx.pos+2] == 's' &&
+		lx.input[lx.pos+3] == 'e' {
+
+		if lx.pos+6 < len(lx.input) &&
+			lx.input[lx.pos+4] == ' ' &&
+			lx.input[lx.pos+5] == 'i' &&
+			lx.input[lx.pos+6] == 'f' {
+			return 2
+		}
+		return 1
+	}
+
+	return 0
+}
+
+
+func (lx *Lexer) SkipWhiteSpace() {
 	for lx.ch == ' ' || lx.ch == '\t' || lx.ch == '\n' || lx.ch == '\r' {
 		if lx.ch == '\n' {
 			lx.line++
