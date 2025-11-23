@@ -1,13 +1,22 @@
+native_import fmt;
+
 class Person {
     string name;
     int age;
+    float money;
 
     void Person(string name, int age) {
         this.name = name;
         this.age = age;
+        this.money = 100.0;
     }
 
 	void greet() {
-		:: fmt.Println("Hello, my name is", this.name, "and I'm", this.age, "years old");
+		fmt.Println("Hello, my name is", this.name, "and I'm", this.age, "years old");
 	}
+
+    float SpendMoney(float amount) {
+        this.money = this.money - amount;
+        return this.money;
+    }
 }

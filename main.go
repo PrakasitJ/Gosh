@@ -346,7 +346,7 @@ func transpileWithPath(in string, basePath string) string {
 				var typeStr string
 				if _, isNewExpr := expr.(*parsing.NewExpr); isNewExpr {
 					typeStr = "*" + className
-				} else if strings.HasPrefix(goRhs, "&") {
+				} else if strings.HasPrefix(goRhs, "&") || goRhs == "nil"{
 					typeStr = "*" + className
 				} else {
 					typeStr = className

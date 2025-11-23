@@ -541,7 +541,7 @@ func TranspileMethodStatement(lexer *lx.Lexer) string {
 			var typeStr string
 			if _, isNewExpr := expr.(*NewExpr); isNewExpr {
 				typeStr = "*" + className
-			} else if strings.HasPrefix(goRhs, "&") {
+			} else if strings.HasPrefix(goRhs, "&") || goRhs == "nil"{
 				typeStr = "*" + className
 			} else {
 				typeStr = className

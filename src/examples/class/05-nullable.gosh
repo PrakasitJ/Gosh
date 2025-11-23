@@ -1,0 +1,9 @@
+native_import fmt;
+import person;
+
+Person person = new Person("edward", 30);
+Person person2 = null;
+
+person.greet();
+fmt.Println(person2);
+fmt.Println(person.SpendMoney(101.0))

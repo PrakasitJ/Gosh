@@ -89,9 +89,20 @@ var keywords = map[string]TokenType{
 	"else":          ELSE,
 }
 
+var replaceWords = map[string]string{
+	"null":            "nil",
+}
+
 func LookupIdent(ident string) TokenType {
 	if tok, ok := keywords[ident]; ok {
 		return tok
 	}
 	return IDENT
+}
+
+func LookupReplaceWord(key string) string {
+	if tok, ok := replaceWords[key]; ok {
+		return tok
+	}
+	return key
 }

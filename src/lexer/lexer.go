@@ -126,7 +126,7 @@ func (lx *Lexer) Tokenize() Token {
 			if isLetter(lx.ch) {
 				literal := lx.readIdentifier()
 				tok.Type = LookupIdent(literal)
-				tok.Literal = literal
+				tok.Literal = LookupReplaceWord(literal)
 				tok.Line = lx.line
 				return tok
 			} else if isDigit(lx.ch) {
