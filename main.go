@@ -330,6 +330,14 @@ func transpileWithPath(in string, basePath string) string {
 					panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
 				}
 				out.WriteString(fmt.Sprintf("\tvar %s %s = %s\n", varName.Literal, typeStr, goRhs))
+			} else if isCompoundAssignToken(next.Type) {
+				expr := parsing.ParseExpr(lexer)
+				goRhs := parsing.TranspileExpr(expr)
+				semi := lexer.Tokenize()
+				if semi.Type != lx.SEMI {
+					panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
+				}
+				out.WriteString(fmt.Sprintf("\t%s %s %s\n", tok.Literal, next.Literal, goRhs))
 			} else if next.Type == lx.IDENT {
 				className := tok.Literal
 				varName := next.Literal
@@ -394,6 +402,16 @@ func transpileWithPath(in string, basePath string) string {
 							goLhs := parsing.TranspileExpr(currentExpr)
 							out.WriteString(fmt.Sprintf("\t%s = %s\n", goLhs, goRhs))
 							break memberLoop
+						case lx.PLUS_ASSIGN, lx.MINUS_ASSIGN, lx.MULT_ASSIGN, lx.DIV_ASSIGN:
+							expr := parsing.ParseExpr(lexer)
+							goRhs := parsing.TranspileExpr(expr)
+							semi := lexer.Tokenize()
+							if semi.Type != lx.SEMI {
+								panic(fmt.Sprintf("[Error] Expected ';' after assignment at line %d", semi.Line))
+							}
+							goLhs := parsing.TranspileExpr(currentExpr)
+							out.WriteString(fmt.Sprintf("\t%s %s %s\n", goLhs, peek.Literal, goRhs))
+							break memberLoop
 						case lx.LPAREN:
 							args := []parsing.Expr{}
 							for {
@@ -445,4 +463,13 @@ func transpileWithPath(in string, basePath string) string {
 
 	out.WriteString("}\n")
 	return out.String()
+}
+
+func isCompoundAssignToken(t lx.TokenType) bool {
+	switch t {
+	case lx.PLUS_ASSIGN, lx.MINUS_ASSIGN, lx.MULT_ASSIGN, lx.DIV_ASSIGN:
+		return true
+	default:
+		return false
+	}
 }

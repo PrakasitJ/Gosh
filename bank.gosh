@@ -1,0 +1,50 @@
+native_import fmt;
+
+class Account {
+	string name;
+	int balance;
+
+	void Account(string name, int balance) {
+		this.name = name;
+		this.balance = balance;
+	}
+
+	void deposit(int amount) {
+		this.balance += amount;
+	}
+
+	void withdraw(int amount) {
+		this.balance -= amount;
+	}
+
+	void printBalance() {
+		:: fmt.Println("Name:", this.name, "Balance:", this.balance);
+	}
+}
+
+class Bank {
+	Account[] accounts;
+
+	void Bank() {
+		this.accounts = [];
+	}
+
+	void addAccount(Account account) {
+		this.accounts = append(this.accounts, account);
+	}
+
+	void printAccounts() {
+		:: for _, account := range this.accounts {
+		:: 	account.printBalance()
+		:: }
+	}
+}
+
+Bank bank = new Bank();
+bank.addAccount(new Account("John", 100));
+bank.addAccount(new Account("Jane", 200));
+bank.printAccounts();
+
+bank.accounts[0].deposit(100);
+bank.accounts[0].withdraw(50);
+bank.accounts[0].printBalance();

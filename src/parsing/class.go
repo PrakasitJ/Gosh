@@ -580,10 +580,19 @@ func TranspileMethodStatement(lexer *lx.Lexer) string {
 				typeStr = className
 			}
 			return fmt.Sprintf("var %s %s = %s", varName, typeStr, goRhs)
+		} else if isCompoundAssignToken(next.Type) {
+			expr := ParseExpr(lexer)
+			goRhs := TranspileExpr(expr)
+			semi := lexer.Tokenize()
+			if semi.Type != lx.SEMI {
+				panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
+			}
+			return fmt.Sprintf("%s %s %s", tok.Literal, next.Literal, goRhs)
 		} else if next.Type == lx.DOT {
 			objExpr := &IdentifierExpr{Name: tok.Literal}
 			currentExpr := Expr(objExpr)
 
+		memberLoop:
 			for {
 				memberTok := lexer.Tokenize()
 				if memberTok.Type != lx.IDENT {
@@ -594,46 +603,69 @@ func TranspileMethodStatement(lexer *lx.Lexer) string {
 					Member: memberTok.Literal,
 				}
 
-				peek := lexer.Tokenize()
-				if peek.Type == lx.DOT {
-					continue
-				} else if peek.Type == lx.ASSIGN {
-					expr := ParseExpr(lexer)
-					goRhs := TranspileExpr(expr)
-					semi := lexer.Tokenize()
-					if semi.Type != lx.SEMI {
-						panic(fmt.Sprintf("[Error] Expected ';' after assignment at line %d", semi.Line))
-					}
-					goLhs := TranspileExpr(currentExpr)
-					return fmt.Sprintf("%s = %s", goLhs, goRhs)
-				} else if peek.Type == lx.LPAREN {
-					args := []Expr{}
-					for {
-						argTok := lexer.Tokenize()
-						if argTok.Type == lx.RPAREN {
-							break
+				for {
+					peek := lexer.Tokenize()
+					switch peek.Type {
+					case lx.DOT:
+						continue memberLoop
+					case lx.LBRACKET:
+						indexExpr := ParseExpr(lexer)
+						closeTok := lexer.Tokenize()
+						if closeTok.Type != lx.RBRACKET {
+							panic(fmt.Sprintf("[Error] Expected ']' after '[' at line %d", closeTok.Line))
 						}
-						lexer.CheckPointThis(argTok)
-						arg := ParseExpr(lexer)
-						args = append(args, arg)
-						nextArg := lexer.Tokenize()
-						if nextArg.Type == lx.RPAREN {
-							break
-						} else if nextArg.Type != lx.COMMA {
-							panic(fmt.Sprintf("[Error] Expected ',' or ')' in argument list at line %d", nextArg.Line))
+						currentExpr = &IndexExpr{
+							Collection: currentExpr,
+							Index:      indexExpr,
 						}
+						continue
+					case lx.ASSIGN:
+						expr := ParseExpr(lexer)
+						goRhs := TranspileExpr(expr)
+						semi := lexer.Tokenize()
+						if semi.Type != lx.SEMI {
+							panic(fmt.Sprintf("[Error] Expected ';' after assignment at line %d", semi.Line))
+						}
+						goLhs := TranspileExpr(currentExpr)
+						return fmt.Sprintf("%s = %s", goLhs, goRhs)
+					case lx.PLUS_ASSIGN, lx.MINUS_ASSIGN, lx.MULT_ASSIGN, lx.DIV_ASSIGN:
+						expr := ParseExpr(lexer)
+						goRhs := TranspileExpr(expr)
+						semi := lexer.Tokenize()
+						if semi.Type != lx.SEMI {
+							panic(fmt.Sprintf("[Error] Expected ';' after assignment at line %d", semi.Line))
+						}
+						goLhs := TranspileExpr(currentExpr)
+						return fmt.Sprintf("%s %s %s", goLhs, peek.Literal, goRhs)
+					case lx.LPAREN:
+						args := []Expr{}
+						for {
+							argTok := lexer.Tokenize()
+							if argTok.Type == lx.RPAREN {
+								break
+							}
+							lexer.CheckPointThis(argTok)
+							arg := ParseExpr(lexer)
+							args = append(args, arg)
+							nextArg := lexer.Tokenize()
+							if nextArg.Type == lx.RPAREN {
+								break
+							} else if nextArg.Type != lx.COMMA {
+								panic(fmt.Sprintf("[Error] Expected ',' or ')' in argument list at line %d", nextArg.Line))
+							}
+						}
+						callExpr := &CallExpr{
+							Callee: currentExpr,
+							Args:   args,
+						}
+						nextTok := lexer.Tokenize()
+						if nextTok.Type != lx.SEMI {
+							lexer.CheckPointThis(nextTok)
+						}
+						return TranspileExpr(callExpr)
+					default:
+						panic(fmt.Sprintf("[Error] Expected '=', '(', '.', '[', or compound assignment after member access at line %d", peek.Line))
 					}
-					callExpr := &CallExpr{
-						Callee: currentExpr,
-						Args:   args,
-					}
-					nextTok := lexer.Tokenize()
-					if nextTok.Type != lx.SEMI {
-						lexer.CheckPointThis(nextTok)
-					}
-					return TranspileExpr(callExpr)
-				} else {
-					panic(fmt.Sprintf("[Error] Expected '=', '(', or '.' after member access at line %d", peek.Line))
 				}
 			}
 		} else if next.Type == lx.LPAREN {
@@ -660,4 +692,13 @@ func TranspileMethodStatement(lexer *lx.Lexer) string {
 	}
 
 	return ""
+}
+
+func isCompoundAssignToken(t lx.TokenType) bool {
+	switch t {
+	case lx.PLUS_ASSIGN, lx.MINUS_ASSIGN, lx.MULT_ASSIGN, lx.DIV_ASSIGN:
+		return true
+	default:
+		return false
+	}
 }
