@@ -77,6 +77,13 @@ type UnaryExpr struct {
 	Right Expr
 }
 
+type ForExpr struct {
+    Init      Expr
+    Condition Expr
+    Post      Expr
+    Body      Expr
+}
+
 func ParseExpr(lexer *lx.Lexer) Expr {
 	return parseBinaryExpr(lexer, 0)
 }
