@@ -50,6 +50,11 @@ type CallExpr struct {
 	Args   []Expr
 }
 
+type IndexExpr struct {
+	Collection Expr
+	Index      Expr
+}
+
 func ParseClass(lexer *lx.Lexer) *ClassDecl {
 	classNameTok := lexer.Tokenize()
 	if classNameTok.Type != lx.IDENT {

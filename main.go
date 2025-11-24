@@ -356,6 +356,7 @@ func transpileWithPath(in string, basePath string) string {
 				objExpr := &parsing.IdentifierExpr{Name: tok.Literal}
 				currentExpr := parsing.Expr(objExpr)
 
+			memberLoop:
 				for {
 					memberTok := lexer.Tokenize()
 					if memberTok.Type != lx.IDENT {
@@ -366,50 +367,64 @@ func transpileWithPath(in string, basePath string) string {
 						Member: memberTok.Literal,
 					}
 
-					peek := lexer.Tokenize()
-					if peek.Type == lx.DOT {
-						continue
-					} else if peek.Type == lx.ASSIGN {
-						expr := parsing.ParseExpr(lexer)
-						goRhs := parsing.TranspileExpr(expr)
-						semi := lexer.Tokenize()
-						if semi.Type != lx.SEMI {
-							panic(fmt.Sprintf("[Error] Expected ';' after assignment at line %d", semi.Line))
-						}
-						goLhs := parsing.TranspileExpr(currentExpr)
-						out.WriteString(fmt.Sprintf("\t%s = %s\n", goLhs, goRhs))
-						break
-					} else if peek.Type == lx.LPAREN {
-						args := []parsing.Expr{}
-						for {
-							argTok := lexer.Tokenize()
-							if argTok.Type == lx.RPAREN {
-								break
+					for {
+						peek := lexer.Tokenize()
+						switch peek.Type {
+						case lx.DOT:
+							continue memberLoop
+						case lx.LBRACKET:
+							indexExpr := parsing.ParseExpr(lexer)
+							closeTok := lexer.Tokenize()
+							if closeTok.Type != lx.RBRACKET {
+								panic(fmt.Sprintf("[Error] Expected ']' after '[' at line %d", closeTok.Line))
 							}
-							lexer.CheckPointThis(argTok)
-							arg := parsing.ParseExpr(lexer)
-							args = append(args, arg)
-							nextArg := lexer.Tokenize()
-							if nextArg.Type == lx.RPAREN {
-								break
-							} else if nextArg.Type != lx.COMMA {
-								panic(fmt.Sprintf("[Error] Expected ',' or ')' in argument list at line %d", nextArg.Line))
+							currentExpr = &parsing.IndexExpr{
+								Collection: currentExpr,
+								Index:      indexExpr,
 							}
+							// continue inner loop to see what follows the index access
+							continue
+						case lx.ASSIGN:
+							expr := parsing.ParseExpr(lexer)
+							goRhs := parsing.TranspileExpr(expr)
+							semi := lexer.Tokenize()
+							if semi.Type != lx.SEMI {
+								panic(fmt.Sprintf("[Error] Expected ';' after assignment at line %d", semi.Line))
+							}
+							goLhs := parsing.TranspileExpr(currentExpr)
+							out.WriteString(fmt.Sprintf("\t%s = %s\n", goLhs, goRhs))
+							break memberLoop
+						case lx.LPAREN:
+							args := []parsing.Expr{}
+							for {
+								argTok := lexer.Tokenize()
+								if argTok.Type == lx.RPAREN {
+									break
+								}
+								lexer.CheckPointThis(argTok)
+								arg := parsing.ParseExpr(lexer)
+								args = append(args, arg)
+								nextArg := lexer.Tokenize()
+								if nextArg.Type == lx.RPAREN {
+									break
+								} else if nextArg.Type != lx.COMMA {
+									panic(fmt.Sprintf("[Error] Expected ',' or ')' in argument list at line %d", nextArg.Line))
+								}
+							}
+							callExpr := &parsing.CallExpr{
+								Callee: currentExpr,
+								Args:   args,
+							}
+							nextTok := lexer.Tokenize()
+							if nextTok.Type != lx.SEMI {
+								lexer.CheckPointThis(nextTok)
+							}
+							goExpr := parsing.TranspileExpr(callExpr)
+							out.WriteString(fmt.Sprintf("\t%s\n", goExpr))
+							break memberLoop
+						default:
+							panic(fmt.Sprintf("[Error] Expected '=', '(', '.', or '[' after member access at line %d", peek.Line))
 						}
-						callExpr := &parsing.CallExpr{
-							Callee: currentExpr,
-							Args:   args,
-						}
-						nextTok := lexer.Tokenize()
-						if nextTok.Type == lx.SEMI {
-						} else {
-							lexer.CheckPointThis(nextTok)
-						}
-						goExpr := parsing.TranspileExpr(callExpr)
-						out.WriteString(fmt.Sprintf("\t%s\n", goExpr))
-						break
-					} else {
-						panic(fmt.Sprintf("[Error] Expected '=', '(', or '.' after member access at line %d", peek.Line))
 					}
 				}
 			} else {

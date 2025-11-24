@@ -266,7 +266,8 @@ func parsePrimary(lexer *lx.Lexer) Expr {
 func parsePostfix(lexer *lx.Lexer, left Expr) Expr {
 	for {
 		tok := lexer.Tokenize()
-		if tok.Type == lx.DOT {
+		switch tok.Type {
+		case lx.DOT:
 			member := lexer.Tokenize()
 			if member.Type != lx.IDENT {
 				panic(fmt.Sprintf("[Error] Expected member name after '.' at line %d", member.Line))
@@ -285,18 +286,27 @@ func parsePostfix(lexer *lx.Lexer, left Expr) Expr {
 			} else {
 				lexer.CheckPointThis(next)
 			}
-		} else if tok.Type == lx.LPAREN {
+		case lx.LBRACKET:
+			indexExpr := ParseExpr(lexer)
+			closeTok := lexer.Tokenize()
+			if closeTok.Type != lx.RBRACKET {
+				panic(fmt.Sprintf("[Error] Expected ']' after '[' at line %d", closeTok.Line))
+			}
+			left = &IndexExpr{
+				Collection: left,
+				Index:      indexExpr,
+			}
+		case lx.LPAREN:
 			args := parseArguments(lexer)
 			left = &CallExpr{
 				Callee: left,
 				Args:   args,
 			}
-		} else {
+		default:
 			lexer.CheckPointThis(tok)
-			break
+			return left
 		}
 	}
-	return left
 }
 
 func parseNewExpr(lexer *lx.Lexer) Expr {
@@ -620,6 +630,8 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 		return fmt.Sprintf("&%s{}", v.ClassName)
 	case *MemberAccessExpr:
 		return fmt.Sprintf("%s.%s", TranspileExpr(v.Object), v.Member)
+	case *IndexExpr:
+		return fmt.Sprintf("%s[%s]", TranspileExpr(v.Collection), TranspileExpr(v.Index))
 	case *CallExpr:
 		args := ""
 		for i, arg := range v.Args {
