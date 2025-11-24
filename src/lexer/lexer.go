@@ -13,7 +13,7 @@ type Lexer struct {
 	ch      byte
 	line    int
 
-	lastToken *Token
+	buffer []Token
 }
 
 func NewLexer(input string) *Lexer {
@@ -23,9 +23,10 @@ func NewLexer(input string) *Lexer {
 }
 
 func (lx *Lexer) Tokenize() Token {
-	if lx.lastToken != nil {
-		t := *lx.lastToken
-		lx.lastToken = nil
+	if len(lx.buffer) > 0 {
+		idx := len(lx.buffer) - 1
+		t := lx.buffer[idx]
+		lx.buffer = lx.buffer[:idx]
 		return t
 	}
 
@@ -203,12 +204,14 @@ func (lx *Lexer) PeekToken() Token {
 	savedPos := lx.pos
 	savedReadPos := lx.readPos
 	savedCh := lx.ch
+	savedBuffer := append([]Token(nil), lx.buffer...)
 
 	tok := lx.Tokenize()
 
 	lx.pos = savedPos
 	lx.readPos = savedReadPos
 	lx.ch = savedCh
+	lx.buffer = savedBuffer
 
 	return tok
 }
@@ -316,7 +319,7 @@ func isLetter(ch byte) bool {
 }
 
 func (lx *Lexer) CheckPointThis(tok Token) {
-	lx.lastToken = &tok
+	lx.buffer = append(lx.buffer, tok)
 }
 
 func DetectNumberType(lit string) TokenType {
