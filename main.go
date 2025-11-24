@@ -10,6 +10,8 @@ import (
 	"github.com/B1gdawg0/Gosh/src/parsing"
 )
 
+const runtimeImportPlaceholder = "\t__GOSH_RUNTIME_IMPORT__\n"
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: gosh <file.gosh> [--debug=true]")
@@ -65,6 +67,7 @@ func transpile(in string) string {
 }
 
 func transpileWithPath(in string, basePath string) string {
+	parsing.ResetRuntimeUsage()
 	lexer := lx.NewLexer(in)
 	var out strings.Builder
 	userImports := []string{}
@@ -237,6 +240,7 @@ func transpileWithPath(in string, basePath string) string {
 	for _, im := range userImports {
 		out.WriteString(fmt.Sprintf("\t\"%s\"\n", im))
 	}
+	out.WriteString(runtimeImportPlaceholder)
 	out.WriteString(")\n")
 
 	allClasses := append(importedClasses, []*parsing.ClassDecl{}...)
@@ -480,7 +484,14 @@ func transpileWithPath(in string, basePath string) string {
 	}
 
 	out.WriteString("}\n")
-	return out.String()
+
+	result := out.String()
+	replacement := ""
+	if parsing.NeedsRuntimeImport() {
+		replacement = fmt.Sprintf("\t%s \"%s\"\n", parsing.RuntimeImportAlias, parsing.RuntimeImportPath())
+	}
+	result = strings.Replace(result, runtimeImportPlaceholder, replacement, 1)
+	return result
 }
 
 func isCompoundAssignToken(t lx.TokenType) bool {

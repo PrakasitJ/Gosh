@@ -1,0 +1,32 @@
+class Person {
+    string name;
+    int age;
+
+    void Person(string name, int age){
+        this.name = name;
+        this.age = age;
+    }
+
+    void greet(){
+        Println("Hello, my name is", this.name, "and I'm", this.age, "years old");
+    }
+}
+
+int[] a = [1, 2, 3, 4, 5];
+a.pop(); // remove the last element
+a.pop(1); // remove the element at index 1
+a.push(10); // add the element 10 to the end of the array
+a.push(1,6); // add the element 6 to the index 1
+Println(a.length()); // get the length of the array
+
+Person[] people = [];
+people.push(new Person("John", 30));
+people.push(new Person("Jane", 20));
+people.push(1, new Person("Jim", 35));
+people.push(new Person("Jill", 25));
+people.push(new Person("Jack", 30));
+people.pop();
+people.pop(2);
+:: for _, person := range people {
+:: 	person.greet();
+:: }
