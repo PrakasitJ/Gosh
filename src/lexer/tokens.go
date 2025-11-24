@@ -3,9 +3,9 @@ package lexer
 type TokenType string
 
 const (
-	IF			 TokenType = "IF"
-	ELSEIF			 TokenType = "ELSEIF"
-	ELSE			 TokenType = "ELSE"
+	IF     TokenType = "IF"
+	ELSEIF TokenType = "ELSEIF"
+	ELSE   TokenType = "ELSE"
 
 	TYPE_INT     TokenType = "TYPE_INT"
 	TYPE_STRING  TokenType = "TYPE_STRING"
@@ -24,22 +24,26 @@ const (
 	BYTE    TokenType = "BYTE"
 	BOOLEAN TokenType = "BOOLEAN"
 
-	ASSIGN TokenType = "="
-	PLUS   TokenType = "+"
-	MINUS  TokenType = "-"
-	MULT   TokenType = "*"
-	DIV    TokenType = "/"
+	ASSIGN       TokenType = "="
+	PLUS         TokenType = "+"
+	MINUS        TokenType = "-"
+	MULT         TokenType = "*"
+	DIV          TokenType = "/"
+	PLUS_ASSIGN  TokenType = "+="
+	MINUS_ASSIGN TokenType = "-="
+	MULT_ASSIGN  TokenType = "*="
+	DIV_ASSIGN   TokenType = "/="
 
-	EQ     TokenType = "=="
-	NEQ    TokenType = "!="
-	LT     TokenType = "<" 
-	GT     TokenType = ">"
-	LTE    TokenType = "<="
-	GTE    TokenType = ">="
+	EQ  TokenType = "=="
+	NEQ TokenType = "!="
+	LT  TokenType = "<"
+	GT  TokenType = ">"
+	LTE TokenType = "<="
+	GTE TokenType = ">="
 
-	AND    TokenType = "&&"
-	OR     TokenType = "||"
-	NOT    TokenType = "!" 
+	AND TokenType = "&&"
+	OR  TokenType = "||"
+	NOT TokenType = "!"
 
 	LPAREN   TokenType = "("
 	RPAREN   TokenType = ")"
@@ -63,7 +67,7 @@ const (
 	IMPORT        TokenType = "IMPORT"
 	NATIVE_IMPORT TokenType = "NATIVE_IMPORT"
 
-	COMMENT       TokenType = "COMMENT"
+	COMMENT TokenType = "COMMENT"
 )
 
 type Token struct {
@@ -86,14 +90,14 @@ var keywords = map[string]TokenType{
 	"double":        TYPE_DOUBLE,
 	"long":          TYPE_LONG,
 	"byte":          TYPE_BYTE,
-	"if":			 IF,
+	"if":            IF,
 	"else if":       ELSEIF,
 	"else":          ELSE,
-	"//":			 COMMENT,
+	"//":            COMMENT,
 }
 
 var replaceWords = map[string]string{
-	"null":            "nil",
+	"null": "nil",
 }
 
 func LookupIdent(ident string) TokenType {

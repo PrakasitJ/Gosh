@@ -110,58 +110,58 @@ func parseBinaryExpr(lexer *lx.Lexer, minPrec int) Expr {
 }
 
 func ParseIfExpr(lexer *lx.Lexer) *IfExpr {
-    var cond Expr
+	var cond Expr
 
-    tok := lexer.PeekToken()
-    if tok.Type == lx.LPAREN {
-        lexer.Tokenize()
-        cond = ParseExpr(lexer)
-        tok = lexer.Tokenize()
-        if tok.Type != lx.RPAREN {
-            panic(fmt.Sprintf("[Error] Expected ')' after if condition at line %d", tok.Line))
-        }
-    } else {
-        cond = ParseExpr(lexer)
-    }
+	tok := lexer.PeekToken()
+	if tok.Type == lx.LPAREN {
+		lexer.Tokenize()
+		cond = ParseExpr(lexer)
+		tok = lexer.Tokenize()
+		if tok.Type != lx.RPAREN {
+			panic(fmt.Sprintf("[Error] Expected ')' after if condition at line %d", tok.Line))
+		}
+	} else {
+		cond = ParseExpr(lexer)
+	}
 
-    tok = lexer.Tokenize()
-    if tok.Type != lx.LBRACE {
-        panic(fmt.Sprintf("[Error] Expected '{' after if condition at line %d", tok.Line))
-    }
+	tok = lexer.Tokenize()
+	if tok.Type != lx.LBRACE {
+		panic(fmt.Sprintf("[Error] Expected '{' after if condition at line %d", tok.Line))
+	}
 
-    thenBlock := parseBlockExpr(lexer)
+	thenBlock := parseBlockExpr(lexer)
 
-    lexer.SkipWhiteSpace()
-    tok = lexer.PeekToken()
-    if tok.Type == lx.ELSE {
-        lexer.Tokenize()
-        next := lexer.PeekToken()
-        switch next.Type {
-			case lx.IF:
-				lexer.Tokenize()
-				return &IfExpr{
-					Condition: cond,
-					Then:      thenBlock,
-					Else:      ParseIfExpr(lexer),
-				}
-        	case lx.LBRACE:
-				lexer.Tokenize()
-				elseBlock := parseBlockExpr(lexer)
-				return &IfExpr{
-					Condition: cond,
-					Then:      thenBlock,
-					Else:      elseBlock,
-				}
-			default:
-				panic(fmt.Sprintf("[Error] Expected 'if' or '{' after else at line %d", next.Line))
-        }
-    }
+	lexer.SkipWhiteSpace()
+	tok = lexer.PeekToken()
+	if tok.Type == lx.ELSE {
+		lexer.Tokenize()
+		next := lexer.PeekToken()
+		switch next.Type {
+		case lx.IF:
+			lexer.Tokenize()
+			return &IfExpr{
+				Condition: cond,
+				Then:      thenBlock,
+				Else:      ParseIfExpr(lexer),
+			}
+		case lx.LBRACE:
+			lexer.Tokenize()
+			elseBlock := parseBlockExpr(lexer)
+			return &IfExpr{
+				Condition: cond,
+				Then:      thenBlock,
+				Else:      elseBlock,
+			}
+		default:
+			panic(fmt.Sprintf("[Error] Expected 'if' or '{' after else at line %d", next.Line))
+		}
+	}
 
-    return &IfExpr{
-        Condition: cond,
-        Then:      thenBlock,
-        Else:      nil,
-    }
+	return &IfExpr{
+		Condition: cond,
+		Then:      thenBlock,
+		Else:      nil,
+	}
 }
 
 func parseBlockExpr(lexer *lx.Lexer) Expr {
@@ -176,7 +176,6 @@ func parseBlockExpr(lexer *lx.Lexer) Expr {
 	}
 	return &BlockExpr{Body: body}
 }
-
 
 func parseStatement(lexer *lx.Lexer) Expr {
 	tok := lexer.PeekToken()
@@ -267,7 +266,8 @@ func parsePrimary(lexer *lx.Lexer) Expr {
 func parsePostfix(lexer *lx.Lexer, left Expr) Expr {
 	for {
 		tok := lexer.Tokenize()
-		if tok.Type == lx.DOT {
+		switch tok.Type {
+		case lx.DOT:
 			member := lexer.Tokenize()
 			if member.Type != lx.IDENT {
 				panic(fmt.Sprintf("[Error] Expected member name after '.' at line %d", member.Line))
@@ -286,18 +286,27 @@ func parsePostfix(lexer *lx.Lexer, left Expr) Expr {
 			} else {
 				lexer.CheckPointThis(next)
 			}
-		} else if tok.Type == lx.LPAREN {
+		case lx.LBRACKET:
+			indexExpr := ParseExpr(lexer)
+			closeTok := lexer.Tokenize()
+			if closeTok.Type != lx.RBRACKET {
+				panic(fmt.Sprintf("[Error] Expected ']' after '[' at line %d", closeTok.Line))
+			}
+			left = &IndexExpr{
+				Collection: left,
+				Index:      indexExpr,
+			}
+		case lx.LPAREN:
 			args := parseArguments(lexer)
 			left = &CallExpr{
 				Callee: left,
 				Args:   args,
 			}
-		} else {
+		default:
 			lexer.CheckPointThis(tok)
-			break
+			return left
 		}
 	}
-	return left
 }
 
 func parseNewExpr(lexer *lx.Lexer) Expr {
@@ -533,7 +542,7 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 		}
 		s += "}"
 		return s
-	
+
 	case *UnaryExpr:
 		opStr := ""
 		switch v.Op {
@@ -560,16 +569,16 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 					var argExpectedType string
 					if i < len(method.Params) {
 						param := method.Params[i]
-						if param.Type == lx.IDENT && param.TypeName != "" {
+						if param.TypeName != "" {
 							if strings.HasPrefix(param.TypeName, "[]") {
 								baseType := strings.TrimPrefix(param.TypeName, "[]")
-								if strings.Contains(baseType, ".") || strings.HasPrefix(baseType, "*") {
+								if isPrimitiveTypeName(baseType) || strings.Contains(baseType, ".") || strings.HasPrefix(baseType, "*") {
 									argExpectedType = "[]" + baseType
 								} else {
 									argExpectedType = "[]*" + baseType
 								}
 							} else {
-								if strings.Contains(param.TypeName, ".") || strings.HasPrefix(param.TypeName, "*") {
+								if isPrimitiveTypeName(param.TypeName) || strings.Contains(param.TypeName, ".") || strings.HasPrefix(param.TypeName, "*") {
 									argExpectedType = param.TypeName
 								} else {
 									argExpectedType = "*" + param.TypeName
@@ -597,16 +606,16 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 				var argExpectedType string
 				if i < len(class.Fields) {
 					field := class.Fields[i]
-					if field.Type == lx.IDENT && field.TypeName != "" {
+					if field.TypeName != "" {
 						if strings.HasPrefix(field.TypeName, "[]") {
 							baseType := strings.TrimPrefix(field.TypeName, "[]")
-							if strings.Contains(baseType, ".") || strings.HasPrefix(baseType, "*") {
+							if isPrimitiveTypeName(baseType) || strings.Contains(baseType, ".") || strings.HasPrefix(baseType, "*") {
 								argExpectedType = "[]" + baseType
 							} else {
 								argExpectedType = "[]*" + baseType
 							}
 						} else {
-							if strings.Contains(field.TypeName, ".") || strings.HasPrefix(field.TypeName, "*") {
+							if isPrimitiveTypeName(field.TypeName) || strings.Contains(field.TypeName, ".") || strings.HasPrefix(field.TypeName, "*") {
 								argExpectedType = field.TypeName
 							} else {
 								argExpectedType = "*" + field.TypeName
@@ -621,6 +630,8 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 		return fmt.Sprintf("&%s{}", v.ClassName)
 	case *MemberAccessExpr:
 		return fmt.Sprintf("%s.%s", TranspileExpr(v.Object), v.Member)
+	case *IndexExpr:
+		return fmt.Sprintf("%s[%s]", TranspileExpr(v.Collection), TranspileExpr(v.Index))
 	case *CallExpr:
 		args := ""
 		for i, arg := range v.Args {
@@ -638,14 +649,25 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 			}
 			elements += TranspileExpr(elem)
 		}
+		if len(v.Elements) == 0 && expectedType == "" {
+			return "nil"
+		}
 		// Use expected type if provided (from constructor parameter or field type)
 		if expectedType != "" && strings.HasPrefix(expectedType, "[]") {
 			return fmt.Sprintf("%s{%s}", expectedType, elements)
 		}
 		// Otherwise, try to infer from elements
 		if len(v.Elements) > 0 {
-			if newExpr, ok := v.Elements[0].(*NewExpr); ok {
-				return fmt.Sprintf("[]*%s{%s}", newExpr.ClassName, elements)
+			switch first := v.Elements[0].(type) {
+			case *NewExpr:
+				return fmt.Sprintf("[]*%s{%s}", first.ClassName, elements)
+			case *NumericExpr:
+				elemType := goTypeFromLiteralToken(lx.DetectNumberType(first.Raw))
+				return fmt.Sprintf("[]%s{%s}", elemType, elements)
+			case *StringExpr:
+				return fmt.Sprintf("[]string{%s}", elements)
+			case *BooleanExpr:
+				return fmt.Sprintf("[]bool{%s}", elements)
 			}
 		}
 		return fmt.Sprintf("[]interface{}{%s}", elements)
@@ -656,16 +678,16 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 				params += ", "
 			}
 			var goType string
-			if param.Type == lx.IDENT && param.TypeName != "" {
+			if param.TypeName != "" {
 				if strings.HasPrefix(param.TypeName, "[]") {
 					baseType := strings.TrimPrefix(param.TypeName, "[]")
-					if strings.Contains(baseType, ".") || strings.HasPrefix(baseType, "*") {
+					if isPrimitiveTypeName(baseType) || strings.Contains(baseType, ".") || strings.HasPrefix(baseType, "*") {
 						goType = "[]" + baseType
 					} else {
 						goType = "[]*" + baseType
 					}
 				} else {
-					if strings.Contains(param.TypeName, ".") || strings.HasPrefix(param.TypeName, "*") {
+					if isPrimitiveTypeName(param.TypeName) || strings.Contains(param.TypeName, ".") || strings.HasPrefix(param.TypeName, "*") {
 						goType = param.TypeName
 					} else {
 						goType = "*" + param.TypeName
@@ -691,8 +713,22 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 	}
 }
 
-func GetVarAndExpr(lexer *lx.Lexer) (*lx.Token, Expr) {
+func GetVarAndExpr(lexer *lx.Lexer) (*lx.Token, bool, Expr) {
+	isArray := false
 	left := lexer.Tokenize()
+
+	if left.Type == lx.LBRACKET {
+		bracketClose := lexer.Tokenize()
+		if bracketClose.Type != lx.RBRACKET {
+			panic(fmt.Sprintf("[Error] Expected ']' after '[' at line %d", bracketClose.Line))
+		}
+		isArray = true
+		left = lexer.Tokenize()
+	}
+
+	if left.Type != lx.IDENT {
+		panic(fmt.Sprintf("[Error] Expected variable name at line %d", left.Line))
+	}
 
 	eq := lexer.Tokenize()
 	if eq.Type != lx.ASSIGN {
@@ -706,5 +742,18 @@ func GetVarAndExpr(lexer *lx.Lexer) (*lx.Token, Expr) {
 		panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
 	}
 
-	return &left, expr
+	return &left, isArray, expr
+}
+
+func goTypeFromLiteralToken(t lx.TokenType) string {
+	switch t {
+	case lx.LONG:
+		return "int64"
+	case lx.FLOAT:
+		return "float32"
+	case lx.DOUBLE:
+		return "float64"
+	default:
+		return "int"
+	}
 }
