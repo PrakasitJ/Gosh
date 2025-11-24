@@ -640,14 +640,14 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 	case *IndexExpr:
 		return fmt.Sprintf("%s[%s]", TranspileExpr(v.Collection), TranspileExpr(v.Index))
 	case *CallExpr:
-		args := ""
-		for i, arg := range v.Args {
-			if i > 0 {
-				args += ", "
-			}
-			args += TranspileExpr(arg)
+		if specialCall, ok := transpileArrayHelperCall(v); ok {
+			return specialCall
 		}
-		return fmt.Sprintf("%s(%s)", TranspileExpr(v.Callee), args)
+		if specialCall, ok := transpileRuntimeFunctionCall(v); ok {
+			return specialCall
+		}
+		argStrs := buildCallArgStrings(v)
+		return fmt.Sprintf("%s(%s)", TranspileExpr(v.Callee), strings.Join(argStrs, ", "))
 	case *ArrayLiteralExpr:
 		elements := ""
 		for i, elem := range v.Elements {
@@ -763,4 +763,87 @@ func goTypeFromLiteralToken(t lx.TokenType) string {
 	default:
 		return "int"
 	}
+}
+
+func transpileArrayHelperCall(call *CallExpr) (string, bool) {
+	memberAccess, ok := call.Callee.(*MemberAccessExpr)
+	if !ok {
+		return "", false
+	}
+
+	target := TranspileExpr(memberAccess.Object)
+	argStrs := buildCallArgStrings(call)
+
+	switch memberAccess.Member {
+	case "push":
+		markRuntimeArraysUsage()
+		if len(argStrs) == 1 {
+			return fmt.Sprintf("%s = %s(%s, %s)",
+				target,
+				runtimeHelperRef("SlicePush"),
+				target,
+				argStrs[0],
+			), true
+		}
+		if len(argStrs) == 2 {
+			return fmt.Sprintf("%s = %s(%s, %s, %s)",
+				target,
+				runtimeHelperRef("SliceInsert"),
+				target,
+				argStrs[0],
+				argStrs[1],
+			), true
+		}
+	case "pop":
+		markRuntimeArraysUsage()
+		if len(argStrs) == 0 {
+			return fmt.Sprintf("%s = %s(%s)",
+				target,
+				runtimeHelperRef("SlicePop"),
+				target,
+			), true
+		}
+		if len(argStrs) == 1 {
+			return fmt.Sprintf("%s = %s(%s, %s)",
+				target,
+				runtimeHelperRef("SlicePopAt"),
+				target,
+				argStrs[0],
+			), true
+		}
+	case "length":
+		markRuntimeArraysUsage()
+		if len(argStrs) == 0 {
+			return fmt.Sprintf("%s(%s)",
+				runtimeHelperRef("SliceLen"),
+				target,
+			), true
+		}
+	}
+
+	return "", false
+}
+
+func transpileRuntimeFunctionCall(call *CallExpr) (string, bool) {
+	ident, ok := call.Callee.(*IdentifierExpr)
+	if !ok {
+		return "", false
+	}
+
+	switch ident.Name {
+	case "Println":
+		markRuntimePrintUsage()
+		args := strings.Join(buildCallArgStrings(call), ", ")
+		return fmt.Sprintf("%s(%s)", runtimeHelperRef("Println"), args), true
+	}
+
+	return "", false
+}
+
+func buildCallArgStrings(call *CallExpr) []string {
+	argStrs := make([]string, len(call.Args))
+	for i, arg := range call.Args {
+		argStrs[i] = TranspileExpr(arg)
+	}
+	return argStrs
 }
