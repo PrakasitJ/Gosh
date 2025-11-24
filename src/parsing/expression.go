@@ -110,58 +110,58 @@ func parseBinaryExpr(lexer *lx.Lexer, minPrec int) Expr {
 }
 
 func ParseIfExpr(lexer *lx.Lexer) *IfExpr {
-    var cond Expr
+	var cond Expr
 
-    tok := lexer.PeekToken()
-    if tok.Type == lx.LPAREN {
-        lexer.Tokenize()
-        cond = ParseExpr(lexer)
-        tok = lexer.Tokenize()
-        if tok.Type != lx.RPAREN {
-            panic(fmt.Sprintf("[Error] Expected ')' after if condition at line %d", tok.Line))
-        }
-    } else {
-        cond = ParseExpr(lexer)
-    }
+	tok := lexer.PeekToken()
+	if tok.Type == lx.LPAREN {
+		lexer.Tokenize()
+		cond = ParseExpr(lexer)
+		tok = lexer.Tokenize()
+		if tok.Type != lx.RPAREN {
+			panic(fmt.Sprintf("[Error] Expected ')' after if condition at line %d", tok.Line))
+		}
+	} else {
+		cond = ParseExpr(lexer)
+	}
 
-    tok = lexer.Tokenize()
-    if tok.Type != lx.LBRACE {
-        panic(fmt.Sprintf("[Error] Expected '{' after if condition at line %d", tok.Line))
-    }
+	tok = lexer.Tokenize()
+	if tok.Type != lx.LBRACE {
+		panic(fmt.Sprintf("[Error] Expected '{' after if condition at line %d", tok.Line))
+	}
 
-    thenBlock := parseBlockExpr(lexer)
+	thenBlock := parseBlockExpr(lexer)
 
-    lexer.SkipWhiteSpace()
-    tok = lexer.PeekToken()
-    if tok.Type == lx.ELSE {
-        lexer.Tokenize()
-        next := lexer.PeekToken()
-        switch next.Type {
-			case lx.IF:
-				lexer.Tokenize()
-				return &IfExpr{
-					Condition: cond,
-					Then:      thenBlock,
-					Else:      ParseIfExpr(lexer),
-				}
-        	case lx.LBRACE:
-				lexer.Tokenize()
-				elseBlock := parseBlockExpr(lexer)
-				return &IfExpr{
-					Condition: cond,
-					Then:      thenBlock,
-					Else:      elseBlock,
-				}
-			default:
-				panic(fmt.Sprintf("[Error] Expected 'if' or '{' after else at line %d", next.Line))
-        }
-    }
+	lexer.SkipWhiteSpace()
+	tok = lexer.PeekToken()
+	if tok.Type == lx.ELSE {
+		lexer.Tokenize()
+		next := lexer.PeekToken()
+		switch next.Type {
+		case lx.IF:
+			lexer.Tokenize()
+			return &IfExpr{
+				Condition: cond,
+				Then:      thenBlock,
+				Else:      ParseIfExpr(lexer),
+			}
+		case lx.LBRACE:
+			lexer.Tokenize()
+			elseBlock := parseBlockExpr(lexer)
+			return &IfExpr{
+				Condition: cond,
+				Then:      thenBlock,
+				Else:      elseBlock,
+			}
+		default:
+			panic(fmt.Sprintf("[Error] Expected 'if' or '{' after else at line %d", next.Line))
+		}
+	}
 
-    return &IfExpr{
-        Condition: cond,
-        Then:      thenBlock,
-        Else:      nil,
-    }
+	return &IfExpr{
+		Condition: cond,
+		Then:      thenBlock,
+		Else:      nil,
+	}
 }
 
 func parseBlockExpr(lexer *lx.Lexer) Expr {
@@ -176,7 +176,6 @@ func parseBlockExpr(lexer *lx.Lexer) Expr {
 	}
 	return &BlockExpr{Body: body}
 }
-
 
 func parseStatement(lexer *lx.Lexer) Expr {
 	tok := lexer.PeekToken()
@@ -533,7 +532,7 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 		}
 		s += "}"
 		return s
-	
+
 	case *UnaryExpr:
 		opStr := ""
 		switch v.Op {
@@ -637,6 +636,9 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 				elements += ", "
 			}
 			elements += TranspileExpr(elem)
+		}
+		if len(v.Elements) == 0 && expectedType == "" {
+			return "nil"
 		}
 		// Use expected type if provided (from constructor parameter or field type)
 		if expectedType != "" && strings.HasPrefix(expectedType, "[]") {
