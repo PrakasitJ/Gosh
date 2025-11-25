@@ -317,6 +317,10 @@ func transpileWithPath(in string, basePath string) string {
 			ifExpr := parsing.ParseIfExpr(lexer)
 			goCode := parsing.TranspileExpr(ifExpr)
 			out.WriteString(goCode + "\n")
+		case lx.FOR:
+			forExpr := parsing.ParseForLoopExpr(lexer)
+			goCode := parsing.TranspileExpr(forExpr)
+			out.WriteString(goCode)
 		case lx.IDENT:
 			next := lexer.Tokenize()
 			var pendingIndexTok *lx.Token

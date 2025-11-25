@@ -186,6 +186,23 @@ func (lx *Lexer) checkRightChar() byte {
 	return lx.input[lx.readPos]
 }
 
+func (lx *Lexer) checkManyRightChar(n int) string {
+    if n <= 0 {
+        return ""
+    }
+
+    if lx.readPos >= len(lx.input) {
+        return ""
+    }
+
+    end := lx.readPos + n
+    if end > len(lx.input) {
+        end = len(lx.input)
+    }
+
+    return lx.input[lx.readPos:end]
+}
+
 func (lx *Lexer) skipComment() {
 	lx.moveCursorToRight()
 	lx.moveCursorToRight()

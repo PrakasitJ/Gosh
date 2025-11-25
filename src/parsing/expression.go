@@ -9,20 +9,25 @@ import (
 )
 
 var precedence = map[lx.TokenType]int{
-	lx.OR:    1,
-	lx.AND:   2,
-	lx.EQ:    3,
-	lx.NEQ:   3,
-	lx.LT:    3,
-	lx.GT:    3,
-	lx.LTE:   3,
-	lx.GTE:   3,
-	lx.PLUS:  4,
-	lx.MINUS: 4,
-	lx.MULT:  5,
-	lx.DIV:   5,
+    lx.ASSIGN:    1,
+    lx.PLUS_ASSIGN: 1,
+    lx.MINUS_ASSIGN: 1,
+    lx.MULT_ASSIGN: 1,
+    lx.DIV_ASSIGN: 1,
+    lx.OR:        2,
+    lx.AND:       3,
+    lx.EQ:        4,
+    lx.NEQ:       4,
+    lx.LT:        5, 
+    lx.GT:        5,
+    lx.LTE:       5,
+    lx.GTE:       5,
+    lx.PLUS:       6,
+    lx.MINUS:       6,
+    lx.MULT:       7,
+    lx.DIV:       7,
+    // lx.MOD:       7,
 }
-
 type Expr interface{}
 
 type NumericExpr struct {
@@ -116,6 +121,66 @@ func parseBinaryExpr(lexer *lx.Lexer, minPrec int) Expr {
 	return left
 }
 
+func ParseForLoopExpr(lexer *lx.Lexer) *ForExpr {
+    var init Expr
+    var cond Expr
+    var post Expr
+    
+    lexer.SkipWhiteSpace()
+    
+    // Check if there's a single '(' wrapping all three parts
+    tok := lexer.PeekToken()
+    hasOuterParens := tok.Type == lx.LPAREN
+    
+    if hasOuterParens {
+        lexer.Tokenize() // consume the outer '('
+        lexer.SkipWhiteSpace()
+    }
+    
+    // Parse init (no individual parentheses allowed)
+    init = parseVarDecl(lexer)
+    lexer.SkipWhiteSpace()
+    
+    
+    // Parse condition (no individual parentheses allowed)
+    cond = ParseExpr(lexer)
+    lexer.SkipWhiteSpace()
+    
+    tok = lexer.Tokenize()
+    if tok.Type != lx.SEMI {
+        panic(fmt.Sprintf("[Error] Expected ';' after condition in for loop at line %d", tok.Line))
+    }
+    lexer.SkipWhiteSpace()
+    
+    // Parse post (no individual parentheses allowed)
+    post = ParseExpr(lexer)
+    lexer.SkipWhiteSpace()
+    
+    // Close outer parentheses if they were opened
+    if hasOuterParens {
+        tok = lexer.PeekToken()
+        if tok.Type != lx.RPAREN {
+            panic(fmt.Sprintf("[Error] Expected ')' after for loop header at line %d, got %v", tok.Line, tok.Type))
+        }
+        lexer.Tokenize() // consume the closing ')'
+    }
+    
+    lexer.SkipWhiteSpace()
+    tok = lexer.Tokenize()
+    if tok.Type != lx.LBRACE {
+        panic(fmt.Sprintf("[Error] Expected '{' after for loop header at line %d", tok.Line))
+    }
+    
+    block := parseBlockExpr(lexer, true)
+    
+    return &ForExpr{
+        Init:      init,
+        Condition: cond,
+        Post:      post,
+        Body:      block,
+    }
+}
+
 func ParseIfExpr(lexer *lx.Lexer) *IfExpr {
 	var cond Expr
 
@@ -136,7 +201,7 @@ func ParseIfExpr(lexer *lx.Lexer) *IfExpr {
 		panic(fmt.Sprintf("[Error] Expected '{' after if condition at line %d", tok.Line))
 	}
 
-	thenBlock := parseBlockExpr(lexer)
+	thenBlock := parseBlockExpr(lexer, false)
 
 	lexer.SkipWhiteSpace()
 	tok = lexer.PeekToken()
@@ -153,7 +218,7 @@ func ParseIfExpr(lexer *lx.Lexer) *IfExpr {
 			}
 		case lx.LBRACE:
 			lexer.Tokenize()
-			elseBlock := parseBlockExpr(lexer)
+			elseBlock := parseBlockExpr(lexer, false)
 			return &IfExpr{
 				Condition: cond,
 				Then:      thenBlock,
@@ -171,7 +236,7 @@ func ParseIfExpr(lexer *lx.Lexer) *IfExpr {
 	}
 }
 
-func parseBlockExpr(lexer *lx.Lexer) Expr {
+func parseBlockExpr(lexer *lx.Lexer, skip bool) Expr {
 	var body []Expr
 	for {
 		tok := lexer.PeekToken()
@@ -179,12 +244,12 @@ func parseBlockExpr(lexer *lx.Lexer) Expr {
 			lexer.Tokenize()
 			break
 		}
-		body = append(body, parseStatement(lexer))
+		body = append(body, parseStatement(lexer, skip))
 	}
 	return &BlockExpr{Body: body}
 }
 
-func parseStatement(lexer *lx.Lexer) Expr {
+func parseStatement(lexer *lx.Lexer, skip bool) Expr {
 	tok := lexer.PeekToken()
 
 	switch tok.Type {
@@ -194,10 +259,13 @@ func parseStatement(lexer *lx.Lexer) Expr {
 	case lx.IF:
 		lexer.Tokenize()
 		return ParseIfExpr(lexer)
+	case lx.FOR:
+		lexer.Tokenize()
+    return ParseForLoopExpr(lexer)
 	default:
 		expr := ParseExpr(lexer)
 		semi := lexer.Tokenize()
-		if semi.Type != lx.SEMI {
+		if !skip && semi.Type != lx.SEMI {
 			panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
 		}
 		return expr
@@ -248,6 +316,14 @@ func parsePrimary(lexer *lx.Lexer) Expr {
 	case lx.BOOLEAN:
 		b, _ := strconv.ParseBool(tok.Literal)
 		return &BooleanExpr{Value: b}
+	case lx.FOR:
+		forExpr := ParseForLoopExpr(lexer)
+		return &ForExpr{
+			Init: forExpr.Init,
+			Condition: forExpr.Condition,
+			Post: forExpr.Post,
+			Body: forExpr.Body,
+		}
 	case lx.IDENT:
 		expr := &IdentifierExpr{Name: tok.Literal}
 		return parsePostfix(lexer, expr)
@@ -529,6 +605,23 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 			v.Ops,
 			TranspileExpr(v.Right),
 		)
+	case *VarDecl:
+		goRhs := TranspileExpr(v.Value)
+		switch v.Type {
+		case lx.TYPE_LONG, lx.TYPE_FLOAT, lx.TYPE_DOUBLE:
+			goRhs = lx.RemoveNumericSuffix(goRhs)
+		}
+		return fmt.Sprintf("%s := %s", v.Name, goRhs)
+	case *ForExpr:
+		init := strings.TrimSuffix(TranspileExpr(v.Init), ";")
+		cond := skipFirstAndLastTwo(TranspileExpr(v.Condition))
+		post := TranspileExpr(v.Post)
+		body := TranspileExpr(v.Body)
+
+		post = strings.TrimSuffix(post, ")")
+		post = strings.TrimPrefix(post, "(")
+		
+		return fmt.Sprintf("for %s; %s; %s %s", init, cond, post, body)
 	case *IfExpr:
 		s := "if " + TranspileExpr(v.Condition) + " "
 		s += TranspileExpr(v.Then)
@@ -754,15 +847,23 @@ func GetVarAndExpr(lexer *lx.Lexer) (*lx.Token, bool, Expr) {
 
 func goTypeFromLiteralToken(t lx.TokenType) string {
 	switch t {
-	case lx.LONG:
-		return "int64"
-	case lx.FLOAT:
-		return "float32"
-	case lx.DOUBLE:
-		return "float64"
-	default:
-		return "int"
-	}
+    case lx.TYPE_INT:
+        return "int"
+    case lx.TYPE_LONG:
+        return "int64"
+    case lx.TYPE_FLOAT:
+        return "float32"
+    case lx.TYPE_DOUBLE:
+        return "float64"
+    case lx.TYPE_BYTE:
+        return "byte"
+    case lx.TYPE_STRING:
+        return "string"
+    case lx.TYPE_BOOLEAN:
+        return "bool"
+    default:
+        panic(fmt.Sprintf("Unknown type: %v", t))
+    }
 }
 
 func transpileArrayHelperCall(call *CallExpr) (string, bool) {
@@ -846,4 +947,15 @@ func buildCallArgStrings(call *CallExpr) []string {
 		argStrs[i] = TranspileExpr(arg)
 	}
 	return argStrs
+}
+
+func skipFirstAndLastTwo(s string) string {
+    s = strings.TrimSuffix(s, ";")
+
+	if len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
+        if len(s) > 2 {
+             return s[1 : len(s)-1]
+        }
+    }
+    return s
 }
