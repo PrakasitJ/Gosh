@@ -53,6 +53,7 @@ const (
 	RBRACKET TokenType = "]"
 	COMMA    TokenType = ","
 	SEMI     TokenType = ";"
+	COLON	 TokenType = ":"
 	DoubleQ  TokenType = "\""
 
 	DOT   TokenType = "."

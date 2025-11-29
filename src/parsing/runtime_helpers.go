@@ -5,15 +5,17 @@ const runtimeImportPath = "github.com/B1gdawg0/Gosh/src/runtime"
 
 var runtimeArraysNeeded bool
 var runtimePrintNeeded bool
+var runtimeTypeCheckNeeded bool
 
 // ResetRuntimeUsage clears runtime feature tracking before a new transpilation.
 func ResetRuntimeUsage() {
 	runtimeArraysNeeded = false
 	runtimePrintNeeded = false
+	runtimeTypeCheckNeeded = false
 }
 
 func NeedsRuntimeImport() bool {
-	return runtimeArraysNeeded || runtimePrintNeeded
+	return runtimeArraysNeeded || runtimePrintNeeded || runtimeTypeCheckNeeded
 }
 
 func markRuntimeArraysUsage() {
@@ -22,6 +24,10 @@ func markRuntimeArraysUsage() {
 
 func markRuntimePrintUsage() {
 	runtimePrintNeeded = true
+}
+
+func markRuntimeTypeCheckUsage() {
+	runtimeTypeCheckNeeded = true
 }
 
 func runtimeHelperRef(fn string) string {

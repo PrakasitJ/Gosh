@@ -145,6 +145,9 @@ func (lx *Lexer) Tokenize() Token {
 			tok = Token{Type: NATIVE, Literal: literal, Line: lx.line}
 			return tok
 		}
+		tok = Token{Type: COLON, Literal: ":", Line: lx.line}
+		lx.moveCursorToRight()
+		return tok
 	case 0:
 		tok.Literal = ""
 		tok.Type = EOF
@@ -187,20 +190,20 @@ func (lx *Lexer) checkRightChar() byte {
 }
 
 func (lx *Lexer) checkManyRightChar(n int) string {
-    if n <= 0 {
-        return ""
-    }
+	if n <= 0 {
+		return ""
+	}
 
-    if lx.readPos >= len(lx.input) {
-        return ""
-    }
+	if lx.readPos >= len(lx.input) {
+		return ""
+	}
 
-    end := lx.readPos + n
-    if end > len(lx.input) {
-        end = len(lx.input)
-    }
+	end := lx.readPos + n
+	if end > len(lx.input) {
+		end = len(lx.input)
+	}
 
-    return lx.input[lx.readPos:end]
+	return lx.input[lx.readPos:end]
 }
 
 func (lx *Lexer) skipComment() {

@@ -14,3 +14,23 @@ for (int i = 0; i < 3; i += 1) {
     }
 	Println("\n----------------\n"); // separator between repetitions
 }
+
+int[] list = [1,2,3,4,5];
+
+for(    int i    = 0     ; i       < 10; i  +=           1)           {
+    Println(i);
+}
+Println("---------------------------------------------------------------");
+for(float i     ; i       < 10; i  +=           1)           {
+    Println(i);
+}
+Println("---------------------------------------------------------------");
+for(int i : list  )          {
+    for j : list{
+        Println(i + j);
+    }
+}
+Println("---------------------------------------------------------------");
+for( i : list){
+    Println(i);
+}

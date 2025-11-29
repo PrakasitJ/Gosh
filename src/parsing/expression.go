@@ -87,6 +87,7 @@ type ForExpr struct {
     Condition Expr
     Post      Expr
     Body      Expr
+	IsForEach bool
 }
 
 func ParseExpr(lexer *lx.Lexer) Expr {
@@ -122,63 +123,110 @@ func parseBinaryExpr(lexer *lx.Lexer, minPrec int) Expr {
 }
 
 func ParseForLoopExpr(lexer *lx.Lexer) *ForExpr {
-    var init Expr
-    var cond Expr
-    var post Expr
-    
-    lexer.SkipWhiteSpace()
-    
-    // Check if there's a single '(' wrapping all three parts
-    tok := lexer.PeekToken()
-    hasOuterParens := tok.Type == lx.LPAREN
-    
-    if hasOuterParens {
-        lexer.Tokenize() // consume the outer '('
-        lexer.SkipWhiteSpace()
-    }
-    
-    // Parse init (no individual parentheses allowed)
-    init = parseVarDecl(lexer)
-    lexer.SkipWhiteSpace()
-    
-    
-    // Parse condition (no individual parentheses allowed)
-    cond = ParseExpr(lexer)
-    lexer.SkipWhiteSpace()
-    
-    tok = lexer.Tokenize()
-    if tok.Type != lx.SEMI {
-        panic(fmt.Sprintf("[Error] Expected ';' after condition in for loop at line %d", tok.Line))
-    }
-    lexer.SkipWhiteSpace()
-    
-    // Parse post (no individual parentheses allowed)
-    post = ParseExpr(lexer)
-    lexer.SkipWhiteSpace()
-    
-    // Close outer parentheses if they were opened
-    if hasOuterParens {
-        tok = lexer.PeekToken()
-        if tok.Type != lx.RPAREN {
-            panic(fmt.Sprintf("[Error] Expected ')' after for loop header at line %d, got %v", tok.Line, tok.Type))
-        }
-        lexer.Tokenize() // consume the closing ')'
-    }
-    
-    lexer.SkipWhiteSpace()
-    tok = lexer.Tokenize()
-    if tok.Type != lx.LBRACE {
-        panic(fmt.Sprintf("[Error] Expected '{' after for loop header at line %d", tok.Line))
-    }
-    
-    block := parseBlockExpr(lexer, true)
-    
-    return &ForExpr{
-        Init:      init,
-        Condition: cond,
-        Post:      post,
-        Body:      block,
-    }
+	lexer.SkipWhiteSpace()
+
+	tok := lexer.PeekToken()
+	hasOuterParens := tok.Type == lx.LPAREN
+	if hasOuterParens {
+		lexer.Tokenize()
+		lexer.SkipWhiteSpace()
+	}
+
+	isEach := checkIfForEach(lexer)
+	init := parseVarDecl(lexer, isEach)
+	lexer.SkipWhiteSpace()
+
+	tok = lexer.PeekToken()
+	
+	var result *ForExpr
+	switch tok.Type {
+	case lx.SEMI:
+		lexer.Tokenize()
+		result = parseForTraditionalExpr(lexer, hasOuterParens, init)
+	case lx.COLON:
+		lexer.Tokenize()
+		result = parseForEachExpr(lexer, hasOuterParens, init)
+	default:
+		panic(fmt.Sprintf("[Error] Expected ';' or ':' in for loop at line %d, got %v", 
+			tok.Line, tok.Type))
+	}
+	
+	return result
+}
+
+func parseForTraditionalExpr(lexer *lx.Lexer, hasOuterParens bool, init Expr) *ForExpr {
+	lexer.SkipWhiteSpace()
+
+	cond := ParseExpr(lexer)
+	lexer.SkipWhiteSpace()
+
+	tok := lexer.Tokenize()
+	if tok.Type != lx.SEMI {
+		panic(fmt.Sprintf("[Error] Expected ';' after condition in for loop at line %d, got %v", 
+			tok.Line, tok.Type))
+	}
+	
+	lexer.SkipWhiteSpace()
+
+	post := ParseExpr(lexer)
+	lexer.SkipWhiteSpace()
+
+	if hasOuterParens {
+		tok = lexer.Tokenize()
+		if tok.Type != lx.RPAREN {
+			panic(fmt.Sprintf("[Error] Expected ')' after for loop header at line %d, got %v", 
+				tok.Line, tok.Type))
+		}
+		lexer.SkipWhiteSpace()
+	}
+	
+	tok = lexer.Tokenize()
+	if tok.Type != lx.LBRACE {
+		panic(fmt.Sprintf("[Error] Expected '{' after for loop header at line %d, got %v", 
+			tok.Line, tok.Type))
+	}
+	
+	block := parseBlockExpr(lexer, true)
+	
+	return &ForExpr{
+		Init:      init,
+		Condition: cond,
+		Post:      post,
+		Body:      block,
+		IsForEach: false,
+	}
+}
+
+func parseForEachExpr(lexer *lx.Lexer, hasOuterParens bool, init Expr) *ForExpr {
+	lexer.SkipWhiteSpace()
+
+	iterable := lexer.Tokenize()
+	lexer.SkipWhiteSpace()
+
+	if hasOuterParens {
+		tok := lexer.Tokenize()
+		if tok.Type != lx.RPAREN {
+			panic(fmt.Sprintf("[Error] Expected ')' after for-each header at line %d, got %v", 
+				tok.Line, tok.Type))
+		}
+		lexer.SkipWhiteSpace()
+	}
+
+	tok := lexer.Tokenize()
+	if tok.Type != lx.LBRACE {
+		panic(fmt.Sprintf("[Error] Expected '{' after for-each header at line %d, got %v", 
+			tok.Line, tok.Type))
+	}
+	
+	block := parseBlockExpr(lexer, true)
+	
+	return &ForExpr{
+		Init:      init,
+		Condition: &IdentifierExpr{Name: iterable.Literal},
+		Post:      nil,
+		Body:      block,
+		IsForEach: true,
+	}
 }
 
 func ParseIfExpr(lexer *lx.Lexer) *IfExpr {
@@ -255,7 +303,7 @@ func parseStatement(lexer *lx.Lexer, skip bool) Expr {
 	switch tok.Type {
 	case lx.TYPE_INT, lx.TYPE_LONG, lx.TYPE_FLOAT, lx.TYPE_DOUBLE,
 		lx.TYPE_BYTE, lx.TYPE_STRING, lx.TYPE_BOOLEAN:
-		return parseVarDecl(lexer)
+		return parseVarDecl(lexer, false)
 	case lx.IF:
 		lexer.Tokenize()
 		return ParseIfExpr(lexer)
@@ -272,31 +320,44 @@ func parseStatement(lexer *lx.Lexer, skip bool) Expr {
 	}
 }
 
-func parseVarDecl(lexer *lx.Lexer) Expr {
-	typeTok := lexer.Tokenize()
-	var varType lx.TokenType = typeTok.Type
+func parseVarDecl(lexer *lx.Lexer, forEachMode bool) Expr {
+	tok := lexer.Tokenize()
 
-	nameTok := lexer.Tokenize()
-	if nameTok.Type != lx.IDENT {
-		panic(fmt.Sprintf("[Error] Expected variable name after type at line %d", nameTok.Line))
+	var varType lx.TokenType
+	var varName string
+	
+	if isTypeKeyword(tok.Literal) {
+		varType = tok.Type
+		lexer.SkipWhiteSpace()
+		
+		nameTok := lexer.Tokenize()
+		if nameTok.Type != lx.IDENT {
+			panic(fmt.Sprintf("[Error] Expected identifier after type at line %d", nameTok.Line))
+		}
+		varName = nameTok.Literal
+	} else if tok.Type == lx.IDENT {
+		if !forEachMode {
+			panic(fmt.Sprintf("[Error] Variable declaration requires type in traditional for loop at line %d", tok.Line))
+		}
+		varName = tok.Literal
+		varType = ""
+	} else {
+		panic(fmt.Sprintf("[Error] Expected type or identifier at line %d", tok.Line))
 	}
-	varName := nameTok.Literal
-	assignTok := lexer.Tokenize()
-	if assignTok.Type != lx.ASSIGN {
-		panic(fmt.Sprintf("[Error] Expected '=' after variable name at line %d", assignTok.Line))
+	
+	lexer.SkipWhiteSpace()
+
+	var initValue Expr
+	if lexer.PeekToken().Type == lx.ASSIGN {
+		lexer.Tokenize()
+		lexer.SkipWhiteSpace()
+		initValue = ParseExpr(lexer)
 	}
-
-	valueExpr := ParseExpr(lexer)
-
-	semi := lexer.Tokenize()
-	if semi.Type != lx.SEMI {
-		panic(fmt.Sprintf("[Error] Expected ';' after expression at line %d", semi.Line))
-	}
-
+	
 	return &VarDecl{
-		Name:  varName,
 		Type:  varType,
-		Value: valueExpr,
+		Name:  varName,
+		Value: initValue,
 	}
 }
 
@@ -606,22 +667,13 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 			TranspileExpr(v.Right),
 		)
 	case *VarDecl:
-		goRhs := TranspileExpr(v.Value)
-		switch v.Type {
-		case lx.TYPE_LONG, lx.TYPE_FLOAT, lx.TYPE_DOUBLE:
-			goRhs = lx.RemoveNumericSuffix(goRhs)
-		}
-		return fmt.Sprintf("%s := %s", v.Name, goRhs)
+		return transpileVarDecl(v)
 	case *ForExpr:
-		init := strings.TrimSuffix(TranspileExpr(v.Init), ";")
-		cond := skipFirstAndLastTwo(TranspileExpr(v.Condition))
-		post := TranspileExpr(v.Post)
-		body := TranspileExpr(v.Body)
-
-		post = strings.TrimSuffix(post, ")")
-		post = strings.TrimPrefix(post, "(")
-		
-		return fmt.Sprintf("for %s; %s; %s %s", init, cond, post, body)
+		if v.IsForEach {
+			return transpileForEach(v)
+		} else {
+			return transpileTraditionalFor(v)
+		}
 	case *IfExpr:
 		s := "if " + TranspileExpr(v.Condition) + " "
 		s += TranspileExpr(v.Then)
@@ -640,7 +692,7 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 		for _, stmt := range v.Body {
 			s += "\t" + TranspileExpr(stmt) + "\n"
 		}
-		s += "}"
+		s += "}\n"
 		return s
 
 	case *UnaryExpr:
@@ -813,6 +865,108 @@ func TranspileExprWithType(e Expr, expectedType string) string {
 	}
 }
 
+func transpileVarDecl(v *VarDecl) string {
+	if v.Value == nil {
+		return fmt.Sprintf("var %s %s", v.Name, goTypeFromLiteralToken(v.Type))
+	}
+	
+	valueCode := TranspileExpr(v.Value)
+
+	if v.Type == "" {
+		return fmt.Sprintf("%s := %s", v.Name, valueCode)
+	}
+
+	return fmt.Sprintf("%s := %s(%s)", v.Name, goTypeFromLiteralToken(v.Type), valueCode)
+}
+
+func transpileForEach(v *ForExpr) string {
+	var varName string
+	switch init := v.Init.(type) {
+	case *VarDecl:
+		varName = init.Name
+	case *IdentifierExpr:
+		varName = init.Name
+	default:
+		panic(fmt.Sprintf("[Transpile Error] Invalid for-each init type: %T", v.Init))
+	}
+
+	iterableCode := TranspileExpr(v.Condition)
+	bodyCode := TranspileExpr(v.Body)
+
+	return fmt.Sprintf("for _, %s := range %s %s", varName, iterableCode, bodyCode)
+}
+
+func transpileTraditionalFor(v *ForExpr) string {
+	init := transpileForInit(v.Init)
+	cond := skipFirstAndLastTwo(TranspileExpr(v.Condition))
+	post := TranspileExpr(v.Post)
+	body := TranspileExpr(v.Body)
+
+	post = strings.TrimSuffix(post, ")")
+	post = strings.TrimPrefix(post, "(")
+
+	return fmt.Sprintf("for %s; %s; %s %s", init, cond, post, body)
+}
+
+func transpileForInit(init Expr) string {
+	switch v := init.(type) {
+	case *VarDecl:
+		if v.Value == nil {
+			return fmt.Sprintf("%s := %s", v.Name, getZeroValue(v.Type))
+		}
+		valueCode := TranspileExpr(v.Value)
+		return fmt.Sprintf("%s := %s", v.Name, valueCode)
+	
+	case *IdentifierExpr:
+		return v.Name
+	
+	default:
+		return TranspileExpr(init)
+	}
+}
+
+func checkIfForEach(lexer *lx.Lexer) bool {
+	var tokens []lx.Token
+	depth := 0
+	maxLookAhead := 20
+	
+	for len(tokens) < maxLookAhead {
+		tok := lexer.Tokenize()
+		tokens = append(tokens, tok)
+		
+		switch tok.Type {
+		case lx.LPAREN:
+			depth++
+		case lx.RPAREN:
+			depth--
+		case lx.COLON:
+			if depth == 0 {
+				for i := len(tokens) - 1; i >= 0; i-- {
+					lexer.CheckPointThis(tokens[i])
+				}
+				return true
+			}
+		case lx.SEMI:
+			if depth == 0 {
+				for i := len(tokens) - 1; i >= 0; i-- {
+					lexer.CheckPointThis(tokens[i])
+				}
+				return false
+			}
+		case lx.LBRACE, lx.EOF:
+			for i := len(tokens) - 1; i >= 0; i-- {
+				lexer.CheckPointThis(tokens[i])
+			}
+			return false
+		}
+	}
+
+	for i := len(tokens) - 1; i >= 0; i-- {
+		lexer.CheckPointThis(tokens[i])
+	}
+	return false
+}
+
 func GetVarAndExpr(lexer *lx.Lexer) (*lx.Token, bool, Expr) {
 	isArray := false
 	left := lexer.Tokenize()
@@ -864,6 +1018,31 @@ func goTypeFromLiteralToken(t lx.TokenType) string {
     default:
         panic(fmt.Sprintf("Unknown type: %v", t))
     }
+}
+
+func isTypeKeyword(s string) bool {
+	types := map[string]bool{
+		"int": true, "float": true, "double": true, "bool": true,
+		"string": true, "byte": true, "long": true,
+	}
+	return types[s]
+}
+
+func getZeroValue(typ lx.TokenType) string {
+	zeroMap := map[lx.TokenType]string{
+		lx.TYPE_INT:    "0",
+		lx.TYPE_FLOAT:  "0.0",
+		lx.TYPE_DOUBLE: "0.0",
+		lx.TYPE_BOOLEAN:   "false",
+		lx.TYPE_STRING: `""`,
+		lx.TYPE_BYTE:   "0",
+		lx.TYPE_LONG:   "0",
+	}
+	
+	if zero, ok := zeroMap[typ]; ok {
+		return zero
+	}
+	return "nil"
 }
 
 func transpileArrayHelperCall(call *CallExpr) (string, bool) {
@@ -939,6 +1118,11 @@ func transpileRuntimeFunctionCall(call *CallExpr) (string, bool) {
 	}
 
 	return "", false
+}
+
+func transpileRuntimeTypeCheck(args []string) (string){
+	markRuntimeTypeCheckUsage()
+	return fmt.Sprintf("%s(%s, %s, %s)",runtimeHelperRef("CheckType"), args[0], args[1], args[2])
 }
 
 func buildCallArgStrings(call *CallExpr) []string {
