@@ -3,7 +3,7 @@
 ✓ Class
 ✓ If-else condition
 ✓ Comment with //
-••• For loop (3 types)
+✓ For loop (3 types)
 dynimic type
 Interface
 Abstract
